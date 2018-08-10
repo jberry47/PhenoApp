@@ -73,9 +73,9 @@ ui <- dashboardPage(skin="black", title="Phenotyping Analysis Tool",
                                       fileInput("phenocv_color_file", "Choose color file",
                                         multiple = F,
                                         accept = c(".txt")),
-                                      # fileInput("phenocv_nir_file", "Choose nir file",
-                                      #   multiple = F,
-                                      #   accept = c(".txt")),
+                                      fileInput("phenocv_nir_file", "Choose nir file",
+                                        multiple = F,
+                                        accept = c(".txt")),
                                       uiOutput("phenocv_go_ui")
                                     ),
                                     tabPanel(title = "PlantCV",
@@ -95,22 +95,37 @@ ui <- dashboardPage(skin="black", title="Phenotyping Analysis Tool",
                                 uiOutput("outlier_removal"),
                                 uiOutput("shapes_anova"),
                                 uiOutput("trends_plot_ui"),
-                                uiOutput("heatmap_plot_ui")
+                                uiOutput("heatmap_plot_ui"),
+                                uiOutput("nir_heatmap_ui")
                         )
                       )
                     )
 )
 
 server <- function(input, output){
+  
+  get_color <- function(file_name,start,stop){
+    color_data <- read.table(file_name,header = F,stringsAsFactors = F,sep = " ")[,-257]
+    color_data$id <- as.character(sapply(color_data$V1,function(i) strsplit(strsplit(i,"/")[[1]][2],"snapshot")[[1]][2]))
+    color_data$imgname <- as.character(sapply(color_data$V1,function(i) strsplit(strsplit(i,"/")[[1]][3],"[.]")[[1]][1]))
+    color_data <- join(color_data,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
+    color_data <- join(color_data,assoc,by="Barcodes")
+    color_data$timestamp <- strptime(color_data$timestamp,format = "%Y-%m-%d %H:%M:%S")
+    color_data$DAP <- floor(as.numeric((color_data$timestamp - beg)/60/60/24))+2
+    color_data[,start:stop] <- t(apply(color_data[,start:stop],1,function(i){i/(sum(i,na.rm = T)+1)}))*100
+    color_data$hr <- as.POSIXlt(color_data$timestamp)$hour
+    return(color_data)
+  }
+  
   options(shiny.maxRequestSize=2000*1024^2) 
   
   #***********************************************************************************************
   # Merging Files Box
   #***********************************************************************************************
   output$phenocv_go_ui <- renderUI({
-    #b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name,input$phenocv_nir_file$name)
-    b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name)
-    if(length(b) == 4){
+    b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name,input$phenocv_nir_file$name)
+    #b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name)
+    if(length(b) == 5){
       actionButton("phenocv_merge","Merge Data")
     }
   })
@@ -128,6 +143,8 @@ server <- function(input, output){
   merged <- reactiveValues(data=NULL)
   design <- reactiveValues(data=NULL)
   shapes <- reactiveValues(data=NULL)
+  vis <- reactiveValues(data=NULL)
+  nir <- reactiveValues(data=NULL)
   observeEvent(input$phenocv_merge,{
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
@@ -172,8 +189,23 @@ server <- function(input, output){
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
     removeNotification(id)
     
-    id <- showNotification(h3("Done!"), duration = 1)
     merged$data <- sv_shapes
+    
+    id <- showNotification(h3("Reading VIS color data..."), duration = NULL)
+    vis$data <- get_color(input$phenocv_color_file$datapath,2,182)
+    vis$data <- vis$data[!(vis$data$Barcodes %in% empties),]
+    vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
+    removeNotification(id)
+    
+    id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
+    nir$data <- get_color(input$phenocv_nir_file$datapath,2,256)
+    nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
+    nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
+    nir$data$intensityAVG <- apply(nir$data[,3:255],1,function(i){sum((i/100)*(2:254),na.rm = T)})
+    removeNotification(id)
+    
+    id <- showNotification(h3("Done!"), duration = 1)
+    
   })
   
   observeEvent(input$plantcv_merge,{
@@ -273,8 +305,16 @@ server <- function(input, output){
   })
   
   observeEvent(input$remove_outliers,{
+    id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
-    id <- showNotification(h3("Done"), duration = 2)
+    vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
+    outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
+    outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
+    outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
+    nir$camera_angle <- unlist(lapply(strsplit(as.character(nir$V1),"_"),function(i) i[3]))
+    nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
+    nir <- nir[!(nir$unique_id %in% outliers$unique_id),]
+    removeNotification(id)
   })
   
   #***********************************************************************************************
@@ -411,7 +451,78 @@ server <- function(input, output){
         strip.text.y=element_text(size=14,color="white"))
   })
   
+  #***********************************************************************************************
+  # Color Helpers
+  #***********************************************************************************************
+  hist_avg <- function(data,start,stop){
+    sub <- data
+    test <- data.frame(do.call("rbind",lapply(split(sub,sub$Drought),function(t){
+      data.frame(do.call("rbind",lapply(split(t,t$Microbes),function(g){
+        data.frame(do.call("rbind",lapply(split(g,g$DAP),function(m){
+          colMeans(m[,start:stop],na.rm = T)
+        }
+        )))
+      }
+      )))
+    })))
+    return(test)
+  }
   
+  hist_sd <- function(data,day,start,stop){
+    sub <- data
+    test <- data.frame(do.call("rbind",lapply(split(sub,sub$Drought),function(t){
+      data.frame(do.call("rbind",lapply(split(t,t$Microbes),function(g){
+        data.frame(do.call("rbind",lapply(split(g,g$DAP),function(m){
+          apply(m[,start:stop],2,function(i){sd(i,na.rm = T)})
+        }
+        )))
+      }
+      )))
+    })))
+    return(test)
+  }
+  
+  #***********************************************************************************************
+  # NIR Heatmap
+  #***********************************************************************************************
+  output$nir_heatmap_ui <- renderUI({
+    if(!is.null(nir$data)){
+      des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+      box(width=10,title = "NIR Heatmap",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
+        plotOutput("nir_heatmap_nofacet"),
+        plotOutput("nir_heatmap_withfacet")
+      ) 
+    }
+  })
+  
+  output$nir_heatmap_nofacet <- renderPlot({
+    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >8,],intensityAVG~Drought+Microbes+DAP,FUN = function(i)mean(i,na.rm=T))
+    ggplot(test,aes(DAP,Drought))+
+      #facet_grid(~Drought)+
+      geom_tile(aes(fill=intensityAVG))+
+      scale_fill_gradient2(limits=c(75,95),midpoint = 0.3+mean(nir$data$intensityAVG[nir$data$Drought == "AAA" & nir$data$intensityAVG != 0 & nir$data$DAP == 15]),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+        axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+        strip.background=element_rect(fill="gray50"),
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))
+  })
+  
+  output$nir_heatmap_withfacet <- renderPlot({
+    ggplot(nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >8,],aes(DAP,Microbes))+
+      facet_grid(~Drought)+
+      geom_tile(aes(fill=intensityAVG))+
+      scale_fill_gradient2(limits=c(75,95),midpoint = mean(nir$data$intensityAVG[nir$data$Drought == "AAA" & nir$data$intensityAVG != 0 & nir$data$DAP == 15]),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+        axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+        strip.background=element_rect(fill="gray50"),
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))
+  })
   
 }
 
