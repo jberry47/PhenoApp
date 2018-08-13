@@ -104,13 +104,15 @@ ui <- dashboardPage(skin="black", title="Phenotyping Analysis Tool",
 
 server <- function(input, output){
   
-  get_color <- function(file_name,start,stop){
-    color_data <- read.table(file_name,header = F,stringsAsFactors = F,sep = " ")[,-257]
+  get_color <- function(file_name,snapshot1,design1,start,stop){
+    color_data <- read.table(file_name,header = F,stringsAsFactors = F,sep = " ")
+    color_data <- color_data[,-ncol(color_data)]
     color_data$id <- as.character(sapply(color_data$V1,function(i) strsplit(strsplit(i,"/")[[1]][2],"snapshot")[[1]][2]))
     color_data$imgname <- as.character(sapply(color_data$V1,function(i) strsplit(strsplit(i,"/")[[1]][3],"[.]")[[1]][1]))
-    color_data <- join(color_data,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
-    color_data <- join(color_data,assoc,by="Barcodes")
+    color_data <- join(color_data,snapshot1[,c("id","Barcodes","timestamp")],by="id")
+    color_data <- join(color_data,design1,by="Barcodes")
     color_data$timestamp <- strptime(color_data$timestamp,format = "%Y-%m-%d %H:%M:%S")
+    beg <- min(color_data$timestamp)
     color_data$DAP <- floor(as.numeric((color_data$timestamp - beg)/60/60/24))+2
     color_data[,start:stop] <- t(apply(color_data[,start:stop],1,function(i){i/(sum(i,na.rm = T)+1)}))*100
     color_data$hr <- as.POSIXlt(color_data$timestamp)$hour
@@ -192,16 +194,16 @@ server <- function(input, output){
     merged$data <- sv_shapes
     
     id <- showNotification(h3("Reading VIS color data..."), duration = NULL)
-    vis$data <- get_color(input$phenocv_color_file$datapath,2,182)
+    vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc,2,181)
     vis$data <- vis$data[!(vis$data$Barcodes %in% empties),]
     vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
     removeNotification(id)
     
     id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
-    nir$data <- get_color(input$phenocv_nir_file$datapath,2,256)
+    nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc,2,256)
     nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
     nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
-    nir$data$intensityAVG <- apply(nir$data[,3:255],1,function(i){sum((i/100)*(2:254),na.rm = T)})
+    nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
     removeNotification(id)
     
     id <- showNotification(h3("Done!"), duration = 1)
@@ -311,9 +313,9 @@ server <- function(input, output){
     outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
     outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
     outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
-    nir$camera_angle <- unlist(lapply(strsplit(as.character(nir$V1),"_"),function(i) i[3]))
+    nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
     nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
-    nir <- nir[!(nir$unique_id %in% outliers$unique_id),]
+    nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),]
     removeNotification(id)
   })
   
