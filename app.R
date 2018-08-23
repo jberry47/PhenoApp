@@ -238,20 +238,29 @@ server <- function(input, output){
     conn <- dbConnect(drv, dbname = db)
     removeNotification(id)
     
-    id <- showNotification(h3("Querying db for shapes data..."), duration = NULL)
-    shapes.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN features WHERE imgtype = "VIS"')
-    shapes.df <- shapes.df[,apply(shapes.df[,seq(1, ncol(shapes.df))], 2, function(x) unique(x)) != "0"]
-    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
-    removeNotification(id)
-    
     id <- showNotification(h3("Reading design file..."), duration = NULL)
     assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
     design$data <- assoc
     removeNotification(id)
     
-    id <- showNotification(h3("Joining files..."), duration = NULL)
+    id <- showNotification(h3("Querying db for data..."), duration = NULL)
+    meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
+    shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features NATURAL JOIN signal WHERE signal.channel_name = "hue"')
+    shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
+    removeNotification(id)
+    
+    id <- showNotification(h3("Extracting color data..."), duration = NULL)
+    vis.df <- cbind(data.frame("meta"=rep("meta",nrow(shapes.df))),data.frame(do.call(rbind,lapply(strsplit(shapes.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),shapes.df[,which((colnames(shapes.df)%in%meta))])
+    shapes.df <- shapes.df[,(colnames(shapes.df)[!colnames(shapes.df) %in% c("bin-number","channel_name","values")])]
+    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
+    colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
+    removeNotification(id)
+    
+    id <- showNotification(h3("Joining design file..."), duration = NULL)
     sv_shapes <- join(shapes.df,assoc,by="Barcodes")
     sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
+    vis.df <- join(vis.df,assoc,by="Barcodes")
+    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
     removeNotification(id)
     
     id <- showNotification(h3("Adding time columns..."), duration = NULL)
@@ -259,26 +268,20 @@ server <- function(input, output){
     beg <- min(sv_shapes$timestamp)
     sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
     sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
-    removeNotification(id)
-    
-    id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
-    vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
-    vis.df <- vis.df[,as.numeric(which(colSums(vis.df == "0") == 0))]
-    colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
-    vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
-    removeNotification(id)
-    
-    id <- showNotification(h3("Joining with design..."), duration = NULL)
-    vis.df <- join(vis.df,assoc,by="Barcodes")
-    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
-    removeNotification(id)
-    
-    id <- showNotification(h3("Adding time columns..."), duration = NULL)
     vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
     vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))
     vis.df$hour <- lubridate::hour(vis.df$timestamp)
     removeNotification(id)
     
+    id <- showNotification(h3("Removing empty pots..."), duration = NULL)
+    empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !(vis.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+    vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
+    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+    sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
+    colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
+    removeNotification(id)
+
     id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
     nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
     if(nrow(nir.df)!= 0){
@@ -291,36 +294,28 @@ server <- function(input, output){
       nir.df <- join(nir.df,assoc,by="Barcodes")
       nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
       removeNotification(id)
-      
+
       id <- showNotification(h3("Adding time columns..."), duration = NULL)
       nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
       nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))
       nir.df$hour <- lubridate::hour(nir.df$timestamp)
       removeNotification(id)
       
+      id <- showNotification(h3("Removing empty pots..."), duration = NULL)
       nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !(nir.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
       nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
       nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
-      nir$data <- nir.df    
+      nir$data <- nir.df 
     }else{
       nir$data <- NULL
     }
     removeNotification(id)
 
-    id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !(vis.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-    empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
-    vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
-    vis$data <- vis.df   
-
-    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-    sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
-    colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
     merged$data <- sv_shapes
     shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
+    vis$data <- vis.df
     removeNotification(id)
-    
+    print(c(nrow(vis$data),nrow(merged$data),nrow(nir$data)))    
     id <- showNotification(h3("Done!"), duration = 1)
     dbDisconnect(conn)
   })
@@ -380,10 +375,11 @@ server <- function(input, output){
   observeEvent(input$remove_outliers,{
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
-    vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
     if(from$data == "plantcv"){
       nir$data <- nir$data[cooksd$data < 3*mean(cooksd$data),]
+      vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
     }else{
+      vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
       outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
       outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
       outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
