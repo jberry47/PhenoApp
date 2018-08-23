@@ -315,7 +315,7 @@ server <- function(input, output){
     shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
     vis$data <- vis.df
     removeNotification(id)
-    print(c(nrow(vis$data),nrow(merged$data),nrow(nir$data)))    
+
     id <- showNotification(h3("Done!"), duration = 1)
     dbDisconnect(conn)
   })
