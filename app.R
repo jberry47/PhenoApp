@@ -17,94 +17,93 @@ library(factoextra)
 library(ggridges)
 
 
-
-ui <- dashboardPage(skin="black", title="Phenotyping Analysis Tool",
-                    dashboardHeader(
-                      title = tagList(
-                        tags$span(
-                          class = "logo-mini", "PAT"
-                        ),
-                        tags$span(
-                          class = "logo-lg", "Phenotyping Analysis Tool"
-                        )
-                      ),
-                      titleWidth = 450
-                    ),
-                    dashboardSidebar(
-                      tags$script(HTML("$('body').addClass('sidebar-mini');")),
-                      width = 150,
-                      sidebarMenu(
-                        menuItem("Overview", tabName = "overview"),
-                        menuItem("Get Started",tabName = "get_started")
-                      )
-                    ),
-                    dashboardBody(
-                      tags$style(HTML("
-                                      .tabbable > .nav > li[class=active]    > a {background-color: #444444; color:white}
-                                      .multicol{
-                                      -webkit-column-count: 4; /* Chrome, Safari, Opera */
-                                      -moz-column-count: 4; /* Firefox */
-                                      column-count: 4;
-                                      }
-                                      .twocol{
-                                      -webkit-column-count: 2; /* Chrome, Safari, Opera */
-                                      -moz-column-count: 2; /* Firefox */
-                                      column-count: 2;
-                                      }
-                                      .warning { 
-                                      color: red;
-                                      }"
+ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
+  dashboardHeader(
+    title = tagList(
+      tags$span(
+        class = "logo-mini", "PAT"
+      ),
+      tags$span(
+        class = "logo-lg", "Phenotyper Analysis Tool"
+      )
+    ),
+    titleWidth = 450
+  ),
+  dashboardSidebar(
+    tags$script(HTML("$('body').addClass('sidebar-mini');")),
+    width = 150,
+    sidebarMenu(
+      menuItem("Overview", tabName = "overview"),
+      menuItem("Get Started",tabName = "get_started")
+    )
+  ),
+  dashboardBody(
+    tags$style(HTML("
+      .tabbable > .nav > li[class=active]    > a {background-color: #444444; color:white}
+      .multicol{
+      -webkit-column-count: 4; /* Chrome, Safari, Opera */
+      -moz-column-count: 4; /* Firefox */
+      column-count: 4;
+      }
+      .twocol{
+      -webkit-column-count: 2; /* Chrome, Safari, Opera */
+      -moz-column-count: 2; /* Firefox */
+      column-count: 2;
+      }
+      .warning { 
+      color: red;
+      }"
                       )),
-                      tabItems(
-                        tabItem(tabName = "overview",
-                                box(style = "overflow-y:scroll",width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
-                                    p("test")
-                                )
-                        ),
-                        tabItem(tabName = "get_started",
-                                box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
-                                    tabsetPanel(
-                                      tabPanel(title="PhenotyperCV",
-                                               fileInput("phenocv_design_file", "Choose design file",
-                                                         multiple = F,
-                                                         accept = c(".csv")),
-                                               fileInput("phenocv_snapshot_file", "Choose snapshot file",
-                                                         multiple = F,
-                                                         accept = c(".csv")),
-                                               fileInput("phenocv_shapes_file", "Choose shapes file",
-                                                         multiple = F,
-                                                         accept = c(".txt")),
-                                               fileInput("phenocv_color_file", "Choose color file",
-                                                         multiple = F,
-                                                         accept = c(".txt")),
-                                               fileInput("phenocv_nir_file", "Choose nir file",
-                                                         multiple = F,
-                                                         accept = c(".txt")),
-                                               textInput("dap_offset", "DAP Offset", value = 2,width=80),
-                                               uiOutput("phenocv_go_ui")
-                                      ),
-                                      tabPanel(title = "PlantCV",
-                                               fileInput("plantcv_sql_path", "Choose sqlite3 database",
-                                                         multiple = F,
-                                                         accept = c(".sqlite3")),
-                                               fileInput("plantcv_design_file", "Choose design file",
-                                                         multiple = F,
-                                                         accept = c(".csv")),
-                                               uiOutput("plantcv_go_ui")
-                                      ),
-                                      tabPanel(title = "Others?",
-                                               p("DIRT and ImageJ are two example but I'm sure there are more")
-                                      )
-                                    )
-                                ),
-                                uiOutput("outlier_removal"),
-                                uiOutput("shapes_ui"),
-                                uiOutput("vis_ui"),
-                                uiOutput("nir_ui")
-                        )
-                      )
-                      )
-                    )
+    tabItems(
+      tabItem(tabName = "overview",
+        box(style = "overflow-y:scroll",width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
+          p("test")
+        )
+      ),
+      tabItem(tabName = "get_started",
+        box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
+          tabsetPanel(
+            tabPanel(title="PhenotyperCV",
+              fileInput("phenocv_design_file", "Choose design file",
+                multiple = F,
+                accept = c(".csv")),
+              fileInput("phenocv_snapshot_file", "Choose snapshot file",
+                multiple = F,
+                accept = c(".csv")),
+              fileInput("phenocv_shapes_file", "Choose shapes file",
+                multiple = F,
+                accept = c(".txt")),
+              fileInput("phenocv_color_file", "Choose color file",
+                multiple = F,
+                accept = c(".txt")),
+              fileInput("phenocv_nir_file", "Choose nir file",
+                multiple = F,
+                accept = c(".txt")),
+              textInput("dap_offset", "DAP Offset", value = 2,width=80),
+              uiOutput("phenocv_go_ui")
+            ),
+            tabPanel(title = "PlantCV",
+              fileInput("plantcv_sql_path", "Choose sqlite3 database",
+                multiple = F,
+                accept = c(".sqlite3")),
+              fileInput("plantcv_design_file", "Choose design file",
+                multiple = F,
+                accept = c(".csv")),
+              uiOutput("plantcv_go_ui")
+            ),
+            tabPanel(title = "Others?",
+              p("DIRT and ImageJ are two example but I'm sure there are more")
+            )
+          )
+        ),
+        uiOutput("outlier_removal"),
+        uiOutput("shapes_ui"),
+        uiOutput("vis_ui"),
+        uiOutput("nir_ui")
+      )
+    )
+    )
+  )
 
 server <- function(input, output){
   
@@ -152,7 +151,10 @@ server <- function(input, output){
   vis <- reactiveValues(data=NULL)
   nir <- reactiveValues(data=NULL)
   empties <- reactiveValues(data=NULL)
+  from <- reactiveValues(data=NULL)
+  
   observeEvent(input$phenocv_merge,{
+    from$data <- "phenocv"
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
     img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
@@ -163,6 +165,18 @@ server <- function(input, output){
     id <- showNotification(h3("Reading shapes file..."), duration = NULL)
     sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
     sv_shapes <- sv_shapes[,-(as.numeric(which(apply(sv_shapes,2,FUN=function(i)all(is.na(i))))))]
+    
+    if(ncol(sv_shapes)==21){
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","det")
+      shapes$data <- sv_shapes
+    }else if(ncol(sv_shapes)==20){
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd")
+      shapes$data <- sv_shapes
+    }else{
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar")
+      shapes$data <- sv_shapes
+    }
+  
     colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","det")
     shapes$data <- sv_shapes
     sv_shapes$id <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
@@ -217,13 +231,14 @@ server <- function(input, output){
   })
   
   observeEvent(input$plantcv_merge,{
+    from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
     db <- input$plantcv_sql_path$datapath
     drv <- dbDriver("SQLite")
     conn <- dbConnect(drv, dbname = db)
     removeNotification(id)
     
-    id <- showNotification(h3("Querying db..."), duration = NULL)
+    id <- showNotification(h3("Querying db for shapes data..."), duration = NULL)
     shapes.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN features WHERE imgtype = "VIS"')
     shapes.df <- shapes.df[,apply(shapes.df[,seq(1, ncol(shapes.df))], 2, function(x) unique(x)) != "0"]
     colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
@@ -246,17 +261,67 @@ server <- function(input, output){
     sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
     removeNotification(id)
     
+    id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
+    vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
+    vis.df <- vis.df[,as.numeric(which(colSums(vis.df == "0") == 0))]
+    colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
+    vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
+    removeNotification(id)
+    
+    id <- showNotification(h3("Joining with design..."), duration = NULL)
+    vis.df <- join(vis.df,assoc,by="Barcodes")
+    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
+    removeNotification(id)
+    
+    id <- showNotification(h3("Adding time columns..."), duration = NULL)
+    vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
+    vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))
+    vis.df$hour <- lubridate::hour(vis.df$timestamp)
+    removeNotification(id)
+    
+    id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
+    nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
+    if(nrow(nir.df)!= 0){
+      nir.df <- nir.df[,as.numeric(which(colSums(nir.df == "0") == 0))]
+      colnames(nir.df)[colnames(nir.df) == "plantbarcode"] <- "Barcodes"
+      nir.df <- cbind(data.frame("meta"=rep("meta",nrow(nir.df))),data.frame(do.call(rbind,lapply(strsplit(nir.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),nir.df[,which(!(colnames(nir.df)%in%(c("bin_values","values"))))])
+      removeNotification(id)
+      
+      id <- showNotification(h3("Joining with design..."), duration = NULL)
+      nir.df <- join(nir.df,assoc,by="Barcodes")
+      nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
+      removeNotification(id)
+      
+      id <- showNotification(h3("Adding time columns..."), duration = NULL)
+      nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
+      nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))
+      nir.df$hour <- lubridate::hour(nir.df$timestamp)
+      removeNotification(id)
+      
+      nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !(nir.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+      nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
+      nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
+      nir$data <- nir.df    
+    }else{
+      nir$data <- NULL
+    }
+    removeNotification(id)
+
     id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !(vis.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+    vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
+    vis$data <- vis.df   
+
+    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
+    colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
+    merged$data <- sv_shapes
+    shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
     removeNotification(id)
     
     id <- showNotification(h3("Done!"), duration = 1)
-    colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
-    merged$data <- sv_shapes
-    shapes$data <- merged$data[,c("image",'area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]
-    
     dbDisconnect(conn)
   })
   
@@ -266,11 +331,11 @@ server <- function(input, output){
   output$outlier_removal <- renderUI({
     if(!is.null(merged$data)){
       box(width=10,title = "Outlier Detection and Removal",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-          p("This step is not required"),
-          actionButton("detect_outliers","Detect Outliers"),
-          textOutput("num_outliers"),
-          plotOutput("cooksd_plot"),
-          uiOutput("remove_outliers_ui")
+        p("This step is not required"),
+        actionButton("detect_outliers","Detect Outliers"),
+        textOutput("num_outliers"),
+        plotOutput("cooksd_plot"),
+        uiOutput("remove_outliers_ui")
       ) 
     }
   })
@@ -299,10 +364,10 @@ server <- function(input, output){
         geom_hline(yintercept = 3*mean(cooksd$data),color="blue",linetype="dashed",size=2)+
         theme_light()+
         theme(axis.text = element_text(size = 14),
-              axis.title= element_text(size = 18))+
+          axis.title= element_text(size = 18))+
         theme(strip.background=element_rect(fill="gray50"),
-              strip.text.x=element_text(size=14,color="white"),
-              strip.text.y=element_text(size=14,color="white"))
+          strip.text.x=element_text(size=14,color="white"),
+          strip.text.y=element_text(size=14,color="white"))
     }
   })
   
@@ -316,12 +381,16 @@ server <- function(input, output){
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
     vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
-    outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
-    outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
-    outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
-    nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
-    nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
-    nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),]
+    if(from$data == "plantcv"){
+      nir$data <- nir$data[cooksd$data < 3*mean(cooksd$data),]
+    }else{
+      outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
+      outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
+      outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
+      nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
+      nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
+      nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),] 
+    }
     removeNotification(id)
   })
   
@@ -330,28 +399,28 @@ server <- function(input, output){
   #***********************************************************************************************
   output$shapes_ui <- renderUI({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","in_bounds"))]
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
     if(!is.null(merged$data)){
       box(width=10,title = "Shapes Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-          tabsetPanel(
-            tabPanel(title="ANOVA",
-                     selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
-                     actionButton("make_anova","Calculate ANOVA"),
-                     plotOutput("anova_plot")
-            ),
-            tabPanel(title="Trends",
-                     selectInput("dep_var","Y-axis",s,"area"),
-                     selectInput("color_by","Color By",des,des[1]),
-                     selectInput("facet_by","Facet By",des,des[2]),
-                     plotOutput("trends_plot")
-            ),
-            tabPanel(title="Heatmap",
-                     selectInput("h_color_by","Color By",s,"area"),
-                     selectInput("h_group_by","Group By",des,des[1]),
-                     selectInput("h_facet_by","Facet By",des,des[2]),
-                     plotOutput("trends_heatmap")
-            )
+        tabsetPanel(
+          tabPanel(title="ANOVA",
+            selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
+            actionButton("make_anova","Calculate ANOVA"),
+            plotOutput("anova_plot")
+          ),
+          tabPanel(title="Trends",
+            selectInput("dep_var","Y-axis",s,"area"),
+            selectInput("color_by","Color By",des,des[1]),
+            selectInput("facet_by","Facet By",des,des[2]),
+            plotOutput("trends_plot")
+          ),
+          tabPanel(title="Heatmap",
+            selectInput("h_color_by","Color By",s,"area"),
+            selectInput("h_group_by","Group By",des,des[1]),
+            selectInput("h_facet_by","Facet By",des,des[2]),
+            plotOutput("trends_heatmap")
           )
+        )
       ) 
     }
   })
@@ -363,7 +432,7 @@ server <- function(input, output){
   anova_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova,{
     id <- showNotification(h3("Calculating variances..."), duration = NULL)
-    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","in_bounds"))]
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     dat <- merged$data[merged$data$DAP==as.numeric(input$which_day),]
     H2 <- c()
@@ -379,9 +448,9 @@ server <- function(input, output){
       unexp <- 1-sum(re)/sum(re,res)
       
       h2 <- c((microbe.var/tot.var),
-              (drought.var/tot.var),
-              (interaction.var/tot.var),
-              unexp)
+        (drought.var/tot.var),
+        (interaction.var/tot.var),
+        unexp)
       H2 <- rbind(H2,h2)
     }
     H2 <- data.frame(H2,row.names = s)
@@ -403,13 +472,13 @@ server <- function(input, output){
         ylab("Variance Explained (%)")+
         theme_bw()+
         theme(strip.background=element_rect(fill="gray50"),
-              strip.text.x=element_text(size=14,color="white"),
-              strip.text.y=element_text(size=14,color="white"))+
+          strip.text.x=element_text(size=14,color="white"),
+          strip.text.y=element_text(size=14,color="white"))+
         theme(axis.text = element_text(size = 14),
-              axis.title.y= element_text(size = 18),
-              axis.title.x = element_blank())+
+          axis.title.y= element_text(size = 18),
+          axis.title.x = element_blank())+
         theme(axis.ticks.length=unit(0.2,"cm"),
-              plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
+          plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
         theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
         theme(legend.position = "top")+
         guides(fill = guide_legend(title = ""))+
@@ -428,10 +497,10 @@ server <- function(input, output){
       ylab(input$dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 14),
-            axis.title= element_text(size = 18))+
+        axis.title= element_text(size = 18))+
       theme(strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))
   })
   
   
@@ -449,10 +518,10 @@ server <- function(input, output){
       ylab(input$h_group_by)+
       theme_light()+
       theme(axis.text = element_text(size = 14),
-            axis.title= element_text(size = 18))+
+        axis.title= element_text(size = 18))+
       theme(strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))
   })
   
   #***********************************************************************************************
@@ -491,9 +560,9 @@ server <- function(input, output){
   makePCA <- function(data,day,start,stop,color_by){
     sub <- data[data$DAP==day,]
     channel.pca <- PCA(sub[,start:stop],graph = F)
-    pca_df <- data.frame("Treatment"=sub[,color_by],
-                         "PC1"=channel.pca$ind$coord[,1],
-                         "PC2"=channel.pca$ind$coord[,2])
+    pca_df <- data.frame("Treatment"=as.character(sub[,color_by]),
+      "PC1"=channel.pca$ind$coord[,1],
+      "PC2"=channel.pca$ind$coord[,2])
     varexp <- signif(c(channel.pca$eig[1,2],channel.pca$eig[2,2]),4)
     
     p <- ggplot(data=pca_df, aes(PC1,PC2))+
@@ -505,7 +574,7 @@ server <- function(input, output){
       geom_hline(yintercept = 0,linetype="dashed")+
       theme_minimal()+
       theme(axis.text = element_text(size = 18),
-            axis.title= element_text(size = 24))+
+        axis.title= element_text(size = 24))+
       theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))
     p
   }
@@ -518,25 +587,23 @@ server <- function(input, output){
     if(!is.null(vis$data)){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
       box(width=10,title = "VIS Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-          tabsetPanel(
-            tabPanel(title = "PCA",
-                     selectInput("vis_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP))),
-                     selectInput("vis_color_by","Color By",des,des[1]),
-                     plotOutput("vis_pca")
-            ),
-            tabPanel(title="Joyplot",
-                     selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP))),
-                     plotOutput("vis_joyplot")
-            )
+        tabsetPanel(
+          tabPanel(title = "PCA",
+            selectInput("vis_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP),na.rm = T)),
+            selectInput("vis_color_by","Color By",des,des[1]),
+            plotOutput("vis_pca")
+          ),
+          tabPanel(title="Joyplot",
+            selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
+            plotOutput("vis_joyplot")
           )
+        )
       ) 
     }
   })
   
   output$vis_pca <- renderPlot({
     makePCA(vis$data,input$vis_which_day,2,181,input$vis_color_by)
-    
-  
   })
   
   output$vis_joyplot <- renderPlot({
@@ -551,20 +618,18 @@ server <- function(input, output){
     
     ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
       facet_grid(~meta2)+
-      #geom_ribbon(limits,aes(fill=Drought))+
       geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
-      #  scale_color_gradientn(colors=hue_pal(l=65)(180)[1:70])+
-      #scale_fill_manual(values = rev(c(muted("green",c=100,l=60),muted("red",c = 100,l=60),"transparent")))+
+      scale_x_continuous(breaks = c(0,90,180,270,360))+
       ylab("")+
       xlab("Hue Channel")+
       theme_ridges(grid=T,center_axis_labels = T)+
       theme(legend.position='none')+
       theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
+        axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))+
+        strip.background=element_rect(fill="gray50"),
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))+
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
     
   })
@@ -578,19 +643,19 @@ server <- function(input, output){
     if(!is.null(nir$data)){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
       box(width=10,title = "NIR Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-          tabsetPanel(
-            tabPanel(title = "PCA",
-                     selectInput("nir_which_day","Which Day",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP))),
-                     selectInput("nir_color_by","Color By",des,des[1]),
-                     plotOutput("nir_pca")
-            ),
-            tabPanel(title="Heatmap",
-                     selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP))),
-                     selectInput("nir_collapse_by", "Collapse By",des,des[1]),
-                     plotOutput("nir_heatmap_nofacet"),
-                     plotOutput("nir_heatmap_withfacet")
-            )
+        tabsetPanel(
+          tabPanel(title = "PCA",
+            selectInput("nir_which_day","Which Day",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T))),
+            selectInput("nir_color_by","Color By",des,des[1]),
+            plotOutput("nir_pca")
+          ),
+          tabPanel(title="Heatmap",
+            selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
+            selectInput("nir_collapse_by", "Collapse By",des,des[1]),
+            plotOutput("nir_heatmap_nofacet"),
+            plotOutput("nir_heatmap_withfacet")
           )
+        )
       )
     }
   })
@@ -601,16 +666,16 @@ server <- function(input, output){
   
   output$nir_heatmap_nofacet <- renderPlot({
     test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
-    ggplot(test,aes_string("DAP",input$nir_collapse_by))+
+    ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
       geom_tile(aes(fill=intensityAVG))+
-      scale_fill_gradient2(limits=c(75,95),midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
+#      scale_fill_gradient2(limits=c(75,95),midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
+        axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+        strip.background=element_rect(fill="gray50"),
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))
   })
   
   output$nir_heatmap_withfacet <- renderPlot({
@@ -619,14 +684,14 @@ server <- function(input, output){
     ggplot(test,aes_string("DAP",des[1]))+
       facet_grid(~eval(parse(text=des[2])))+
       geom_tile(aes(fill=intensityAVG))+
-      scale_fill_gradient2(limits=c(75,95),high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
+#      scale_fill_gradient2(limits=c(75,95),high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
+        axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+        strip.background=element_rect(fill="gray50"),
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))
   })
   
 }
