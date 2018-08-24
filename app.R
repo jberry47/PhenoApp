@@ -38,6 +38,8 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
     )
   ),
   dashboardBody(
+    fluidRow(
+    tags$head(tags$style("#container * {display: inline;}")),
     tags$style(HTML("
       .tabbable > .nav > li[class=active]    > a {background-color: #444444; color:white}
       .multicol{
@@ -57,7 +59,64 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
     tabItems(
       tabItem(tabName = "overview",
         box(style = "overflow-y:scroll",width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("test")
+          p("This analysis tool is designed to take input from either PlantCV or PhenotyperCV that was used to process images from 
+            the Bellweather Phenotyping Facility at Donald Danforth Plant Science Center. Depending on what program was used to 
+            analyze the images, there is a different import process. In both cases, after importing, four more boxes will appear: Outlier 
+            Detection and Removal, Shapes Analysis, VIS Analysis, and NIR Analysis. These analyses are intended to be a first pass look 
+            at data from this facility and does not perform any statistical inferences. If an effect is observed, it is
+            required that proper statistical is testing is done outside of this framework.")
+        ),
+        box(style = "overflow-y:scroll",width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
+          p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. There are a couple of rules that 
+            need to be followed for this tool to work properly."),
+          tags$ul(
+            tags$li("There must be a column called ",tags$b("Barcodes"),"with exactly this
+            spelling."),
+            tags$li("The other columns in this file shouldn't have any entries that have a ",code("."),"in them. For example sorghum has a genotype 
+            commonly called B.Az9504 and if this is how it's labeled in this file, things will turn out funny. Please remove entries such 
+            as this."),
+            tags$li("While this tool is setup to handle more than two columns for analysis, many of the analyses are
+            coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that, consider doing
+            all analyses outside of this framework.")
+          ),
+          p("The first row of the design file should be: Barcodes, Var1, Var2. Where Var1 and Var2 could be called anything. Example design files are
+            shown here. "),
+          column(6,
+            tableOutput("design_ex1")),
+          column(6,
+            tableOutput("design_ex2"))
+        ),
+        box(style = "overflow-y:scroll",width=5,title = "Importing from PhenotyperCV",solidHeader = T,status = 'success',collapsible = TRUE,
+          p("When processing images using this program, there are 5 files that are required: design, snapshot, shapes, color, and nir-color. 
+             The design file is shown above and the snapshot file is the one that came with the image download (SnapshotInfo.csv). For the 
+             shapes, color and nir-color files, these are created when running PhenotyperCV and no alterations are required to load the
+             data into this framework. For example: "),
+          code("find Images/ -name 'VIS_SV*' | xargs -P8 -I{} ./PhenotyperCV VIS_CH {} vis_background_image.png shapes.txt color.txt"),
+          p("created shapes.txt and color.txt and"),
+          code("find Images/ -name 'NIR_SV*' | xargs -P8 -I{} ./PhenotyperCV NIR {} nir_background_image.png nir_color.txt"),
+          p("created nir_color.txt")
+        ),
+        box(style = "overflow-y:scroll",width=5,title = "Importing from PlantCV",solidHeader = T,status = 'success',collapsible = TRUE,
+          p("When processing images using this program, there are 2 files that are required: design, and sqlite3. The design file is shown 
+            above and the sqlite3 file is created when running PlantCV with the",code("-s"), "flag. An example bash script to run image
+            analysis using this program and getting a sqlite3 file out is shown here:"),
+          code("#!/bin/bash",br(),"
+                /home/jberry/plantcv/plantcv-pipeline.py \\",br(),"
+                -d /home/jberry/Phenotyper/Exp2 \\",br(),"
+                -a phenofront \\",br(),"
+                -p /home/jberry/Phenotyper/vis_sv_z1_L0.py \\",br(),"
+                -i /home/jberry/Phenotyper/plantcv_SV_output \\",br(),"
+                -T 40 \\",br(),"
+                -c \\",br(),"
+                -s PlantCV_SV_drought.sqlite3 \\",br(),"
+                -f imgtype_camera_frame_zoom_lifter_gain_exposure_other_id\\",br(),"
+                -M imgtype:VIS,camera:SV \\",br(),"
+                -t png \\",br(),"
+                -C NIR"),
+          p("which creates the PlantCV_SV_drought.sqlite3 file."),
+          p("PlantCV allows for co-processing the NIR images along side of the VIS images and that is done with the",code("-C"),"flag. This import
+            method is designed to handle with and without the NIR data."),
+          div(id="container",p("For more information about PlantCV, click "),tags$a(href="https://plantcv.readthedocs.io/en/latest/","here",target="_blank"))
         )
       ),
       tabItem(tabName = "get_started",
@@ -83,16 +142,13 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
               uiOutput("phenocv_go_ui")
             ),
             tabPanel(title = "PlantCV",
-              fileInput("plantcv_sql_path", "Choose sqlite3 database",
-                multiple = F,
-                accept = c(".sqlite3")),
               fileInput("plantcv_design_file", "Choose design file",
                 multiple = F,
                 accept = c(".csv")),
+              fileInput("plantcv_sql_path", "Choose sqlite3 database",
+                multiple = F,
+                accept = c(".sqlite3")),
               uiOutput("plantcv_go_ui")
-            ),
-            tabPanel(title = "Others?",
-              p("DIRT and ImageJ are two example but I'm sure there are more")
             )
           )
         ),
@@ -104,8 +160,16 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
     )
     )
   )
+  )
 
 server <- function(input, output){
+  output$design_ex1 <- renderTable({
+    head(read.csv("data/design_ex1.csv",stringsAsFactors = F),n=10)
+  },bordered=TRUE,spacing = "xs",align = "l")
+  output$design_ex2 <- renderTable({
+    head(read.csv("data/design_ex2.csv",stringsAsFactors = F),n=10)
+  },bordered=TRUE,spacing = "xs",align = "l")
+  
   
   get_color <- function(file_name,snapshot1,design1,start,stop){
     color_data <- read.table(file_name,header = F,stringsAsFactors = F,sep = " ")
@@ -114,7 +178,7 @@ server <- function(input, output){
     color_data$imgname <- unlist(lapply(strsplit(color_data$V1,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))    
     color_data <- join(color_data,snapshot1[,c("id","Barcodes","timestamp")],by="id")
     color_data <- join(color_data,design1,by="Barcodes")
-    color_data$timestamp <- strptime(color_data$timestamp,format = "%Y-%m-%d %H:%M:%S")
+    color_data$timestamp <- strptime(color_data$timestamp,format = "%Y-%m-%d %H:%M:%S")+as.numeric(input$dap_offset)
     beg <- min(color_data$timestamp)
     color_data$DAP <- floor(as.numeric((color_data$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
     color_data[,start:stop] <- t(apply(color_data[,start:stop],1,function(i){i/(sum(i,na.rm = T)+1)}))*100
@@ -122,7 +186,7 @@ server <- function(input, output){
     return(color_data)
   }
   
-  options(shiny.maxRequestSize=2000*1024^2) 
+  options(shiny.maxRequestSize=2000*1024^2)
   
   #***********************************************************************************************
   # Merging Files Box
@@ -269,7 +333,7 @@ server <- function(input, output){
     sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
     sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
     vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
-    vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))
+    vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
     vis.df$hour <- lubridate::hour(vis.df$timestamp)
     removeNotification(id)
     
@@ -297,7 +361,7 @@ server <- function(input, output){
 
       id <- showNotification(h3("Adding time columns..."), duration = NULL)
       nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
-      nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))
+      nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
       nir.df$hour <- lubridate::hour(nir.df$timestamp)
       removeNotification(id)
       
@@ -664,7 +728,7 @@ server <- function(input, output){
     test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
     ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
       geom_tile(aes(fill=intensityAVG))+
-#      scale_fill_gradient2(limits=c(75,95),midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
+      scale_fill_gradient2(midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
       theme_light()+
       theme(axis.text = element_text(size = 12),
         axis.title= element_text(size = 18))+
@@ -680,7 +744,7 @@ server <- function(input, output){
     ggplot(test,aes_string("DAP",des[1]))+
       facet_grid(~eval(parse(text=des[2])))+
       geom_tile(aes(fill=intensityAVG))+
-#      scale_fill_gradient2(limits=c(75,95),high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
+      scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
       theme_light()+
       theme(axis.text = element_text(size = 12),
         axis.title= element_text(size = 18))+
