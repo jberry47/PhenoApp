@@ -58,7 +58,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                       )),
     tabItems(
       tabItem(tabName = "overview",
-        box(style = "overflow-y:scroll",width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
+        box(width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
           p("This analysis tool is designed to take input from either PlantCV or PhenotyperCV that was used to process images from 
             the Bellweather Phenotyping Facility at Donald Danforth Plant Science Center. Depending on what program was used to 
             analyze the images, there is a different import process. In both cases, after importing, four more boxes will appear: Outlier 
@@ -66,28 +66,32 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
             at data from this facility and does not perform any statistical inferences. If an effect is observed, it is
             required that proper statistical is testing is done outside of this framework.")
         ),
-        box(style = "overflow-y:scroll",width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. There are a couple of rules that 
+        box(width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
+          p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. This file is the link that takes the barcode of a plant and assigns the
+            the design parameters. So at most there should be 1141 rows in this file. See last paragraph in this box for exceptions. There are a couple of rules that 
             need to be followed for this tool to work properly."),
           tags$ul(
             tags$li("There must be a column called ",tags$b("Barcodes"),"with exactly this
             spelling."),
             tags$li("The other columns in this file shouldn't have any entries that have a ",code("."),"in them. For example sorghum has a genotype 
-            commonly called B.Az9504 and if this is how it's labeled in this file, things will turn out funny. Please remove entries such 
+            commonly called B.Az9504 and if this is how it's labeled in this file, things will turn out funny. Please edit entries such 
             as this."),
-            tags$li("While this tool is setup to handle more than two columns for analysis, many of the analyses are
+            tags$li("While this tool is setup to handle more than two design columns, many of the analyses are
             coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that, consider doing
             all analyses outside of this framework.")
           ),
-          p("The first row of the design file should be: Barcodes, Var1, Var2. Where Var1 and Var2 could be called anything. Example design files are
+          p("The first row of the design file should be: Barcodes, Var1, Var2. Where Var1 and Var2 could be called anything. The first 10 rows of two example design files are
             shown here. "),
           column(6,
             tableOutput("design_ex1")),
           column(6,
-            tableOutput("design_ex2"))
+            tableOutput("design_ex2")),
+          p("If you only want to analyze a subset of your data, outside of this framework, select only those things you which to look 
+            at in the design file and upload that. The merging process will remove plants from the dataset where there is no matching barcode 
+            in the design file. ")
         ),
-        box(style = "overflow-y:scroll",width=5,title = "Importing from PhenotyperCV",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("When processing images using this program, there are 5 files that are required: design, snapshot, shapes, color, and nir-color. 
+        box(width=5,title = "Importing from PhenotyperCV",solidHeader = T,status = 'success',collapsible = TRUE,
+          p("When processing images using this program, there are 5 files, 4 of which are required: design, snapshot, shapes, color, and nir-color (optional). 
              The design file is shown above and the snapshot file is the one that came with the image download (SnapshotInfo.csv). For the 
              shapes, color and nir-color files, these are created when running PhenotyperCV and no alterations are required to load the
              data into this framework. For example: "),
@@ -96,7 +100,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
           code("find Images/ -name 'NIR_SV*' | xargs -P8 -I{} ./PhenotyperCV NIR {} nir_background_image.png nir_color.txt"),
           p("created nir_color.txt")
         ),
-        box(style = "overflow-y:scroll",width=5,title = "Importing from PlantCV",solidHeader = T,status = 'success',collapsible = TRUE,
+        box(width=5,title = "Importing from PlantCV",solidHeader = T,status = 'success',collapsible = TRUE,
           p("When processing images using this program, there are 2 files that are required: design, and sqlite3. The design file is shown 
             above and the sqlite3 file is created when running PlantCV with the",code("-s"), "flag. An example bash script to run image
             analysis using this program and getting a sqlite3 file out is shown here:"),
@@ -121,6 +125,9 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
       ),
       tabItem(tabName = "get_started",
         box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
+          h5("How many days before the first day of imaging were the plants planted?"),
+          textInput("dap_offset", "DAP Offset", value = 2,width=80),
+          br(),
           tabsetPanel(
             tabPanel(title="PhenotyperCV",
               fileInput("phenocv_design_file", "Choose design file",
@@ -135,10 +142,8 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
               fileInput("phenocv_color_file", "Choose color file",
                 multiple = F,
                 accept = c(".txt")),
-              fileInput("phenocv_nir_file", "Choose nir file",
-                multiple = F,
-                accept = c(".txt")),
-              textInput("dap_offset", "DAP Offset", value = 2,width=80),
+              radioButtons("pheno_nir_q", "Analyze NIR data",choices = c("Yes"="Yes","No"="No")),
+              uiOutput("phenocv_nir_q_ui"),
               uiOutput("phenocv_go_ui")
             ),
             tabPanel(title = "PlantCV",
@@ -163,6 +168,14 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
   )
 
 server <- function(input, output){
+  output$phenocv_nir_q_ui <- renderUI({
+    if(input$pheno_nir_q == "Yes"){
+      fileInput("phenocv_nir_file", "Choose nir file",
+        multiple = F,
+        accept = c(".txt"))
+    }
+  })
+  
   output$design_ex1 <- renderTable({
     head(read.csv("data/design_ex1.csv",stringsAsFactors = F),n=10)
   },bordered=TRUE,spacing = "xs",align = "l")
@@ -194,7 +207,7 @@ server <- function(input, output){
   output$phenocv_go_ui <- renderUI({
     b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name,input$phenocv_nir_file$name)
     #b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name)
-    if(length(b) == 5){
+    if((input$pheno_nir_q == "Yes" & length(b) == 5)|(input$pheno_nir_q == "No" & length(b) == 4)){
       actionButton("phenocv_merge","Merge Data")
     }
   })
@@ -283,13 +296,14 @@ server <- function(input, output){
     vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
     removeNotification(id)
     
-    id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
-    nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc,2,256)
-    nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
-    nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
-    nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
-    removeNotification(id)
-    
+    if(input$pheno_nir_q == "Yes"){
+      id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
+      nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc,2,256)
+      nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
+      nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
+      nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
+      removeNotification(id)
+    }
     id <- showNotification(h3("Done!"), duration = 1)
     
   })
@@ -371,14 +385,14 @@ server <- function(input, output){
       nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
       nir$data <- nir.df 
     }else{
+      removeNotification(id)
+      id <- showNotification(h3("No NIR data detected"), duration = 1)
       nir$data <- NULL
     }
-    removeNotification(id)
 
     merged$data <- sv_shapes
     shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
     vis$data <- vis.df
-    removeNotification(id)
 
     id <- showNotification(h3("Done!"), duration = 1)
     dbDisconnect(conn)
@@ -479,6 +493,13 @@ server <- function(input, output){
             selectInput("h_group_by","Group By",des,des[1]),
             selectInput("h_facet_by","Facet By",des,des[2]),
             plotOutput("trends_heatmap")
+          ),
+          tabPanel(title="Boxplots",
+            selectInput("box_dep_var","Y-axis",s,"area"),
+            selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
+            selectInput("box_group_by","Group By",des,des[1]),
+            selectInput("box_facet_by","Facet By",des,des[2]),
+            plotOutput("boxplot_shapes")
           )
         )
       ) 
@@ -584,6 +605,24 @@ server <- function(input, output){
         strip.text.y=element_text(size=14,color="white"))
   })
   
+  #***********************************************************************************************
+  # Shapes Boxplots
+  #***********************************************************************************************
+  output$boxplot_shapes <- renderPlot({
+    ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_group_by,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
+      facet_grid(~eval(parse(text=input$box_facet_by)))+
+      geom_boxplot()+
+      ylab(input$box_dep_var)+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+        axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+        strip.background=element_rect(fill="gray50"),
+        strip.text.x=element_text(size=14,color="white"),
+        strip.text.y=element_text(size=14,color="white"))+
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+
   #***********************************************************************************************
   # Color Helpers
   #***********************************************************************************************
