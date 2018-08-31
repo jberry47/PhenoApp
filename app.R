@@ -677,7 +677,7 @@ server <- function(input, output){
         axis.title= element_text(size = 24))+
       theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))
     p
-  }
+  }Clone the repo git clone ...
   
   
   #***********************************************************************************************
@@ -796,4 +796,3 @@ server <- function(input, output){
   
 }
 
-shinyApp(ui, server)
