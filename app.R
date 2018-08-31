@@ -411,6 +411,7 @@ server <- function(input, output){
         textOutput("num_outliers"),
         plotOutput("cooksd_plot"),
         uiOutput("remove_outliers_ui"),
+        br(),
         uiOutput("download_cooks_ui")
       ) 
     }
@@ -468,8 +469,6 @@ server <- function(input, output){
       actionButton("remove_outliers","Remove Outliers")
     }
   })
-  
-  
   
   observeEvent(input$remove_outliers,{
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
