@@ -786,6 +786,7 @@ server <- function(input, output){
   output$nir_heatmap_nofacet <- renderPlot({
     test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
     ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
+      ylab(input$nir_collapse_by)+
       geom_tile(aes(fill=intensityAVG))+
       scale_fill_gradient2(midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
       theme_light()+
