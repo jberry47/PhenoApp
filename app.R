@@ -15,6 +15,7 @@ library(RSQLite)
 library(FactoMineR)
 library(factoextra)
 library(ggridges)
+library(car)
 
 
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
