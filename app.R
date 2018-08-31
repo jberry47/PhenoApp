@@ -766,7 +766,8 @@ server <- function(input, output){
           tabPanel(title = "PCA",
             selectInput("nir_which_day","Which Day",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T))),
             selectInput("nir_color_by","Color By",des,des[1]),
-            plotOutput("nir_pca")
+            plotOutput("nir_pca"),
+            uiOutput("download_nir_PCA_ui")
           ),
           tabPanel(title="Heatmap",
             selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
@@ -779,8 +780,24 @@ server <- function(input, output){
     }
   })
   
+  nir_make_pca <- reactive({
+    makePCA(nir$data,input$nir_which_day,2,181,input$nir_color_by)
+  })
+  
   output$nir_pca <- renderPlot({
     makePCA(nir$data,input$nir_which_day,2,181,input$nir_color_by)
+  })
+  
+  output$nir_pca_download <- downloadHandler(
+    filename = function() {"nir_pca.png"},
+    content=function(file){
+      ggsave(file,nir_make_pca(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_nir_PCA_ui <- renderUI({
+    if(!is.null(nir$data)){
+      downloadButton("nir_pca_download","Download Plot")
+    }
   })
   
   output$nir_heatmap_nofacet <- renderPlot({
