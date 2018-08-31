@@ -469,6 +469,8 @@ server <- function(input, output){
     }
   })
   
+  
+  
   observeEvent(input$remove_outliers,{
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
