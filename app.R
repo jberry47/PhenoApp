@@ -384,7 +384,8 @@ server <- function(input, output){
       nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !(nir.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
       nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
       nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
-      nir$data <- nir.df 
+      nir$data <- nir.df
+      removeNotification(id)
     }else{
       removeNotification(id)
       id <- showNotification(h3("No NIR data detected"), duration = 1)
@@ -409,7 +410,8 @@ server <- function(input, output){
         actionButton("detect_outliers","Detect Outliers"),
         textOutput("num_outliers"),
         plotOutput("cooksd_plot"),
-        uiOutput("remove_outliers_ui")
+        uiOutput("remove_outliers_ui"),
+        uiOutput("download_cooks_ui")
       ) 
     }
   })
@@ -430,18 +432,34 @@ server <- function(input, output){
     }else{""}
   })
   
+  cooks_plot <- reactive({
+    df <- data.frame("index"=1:length(cooksd$data),"cooksd"=cooksd$data)
+    ggplot(df,aes(index,cooksd))+
+      geom_point()+
+      geom_hline(yintercept = 3*mean(cooksd$data),color="blue",linetype="dashed",size=2)+
+      theme_light()+
+      theme(axis.text = element_text(size = 14),
+            axis.title= element_text(size = 18))+
+      theme(strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+  })
+  
   output$cooksd_plot <- renderPlot({
     if(!is.null(cooksd$data)){
-      df <- data.frame("index"=1:length(cooksd$data),"cooksd"=cooksd$data)
-      ggplot(df,aes(index,cooksd))+
-        geom_point()+
-        geom_hline(yintercept = 3*mean(cooksd$data),color="blue",linetype="dashed",size=2)+
-        theme_light()+
-        theme(axis.text = element_text(size = 14),
-          axis.title= element_text(size = 18))+
-        theme(strip.background=element_rect(fill="gray50"),
-          strip.text.x=element_text(size=14,color="white"),
-          strip.text.y=element_text(size=14,color="white"))
+      cooks_plot()
+    }
+  })
+  
+  output$cooksd_download <- downloadHandler(
+    filename = function() {"pheno_cooksd_plot.png"},
+    content=function(file){
+      ggsave(file,cooks_plot(),device = "png",width = 10,height = 4,dpi = 300)
+    })
+  
+  output$download_cooks_ui <- renderUI({
+    if(!is.null(cooksd$data)){
+      downloadButton("cooksd_download","Download Plot")
     }
   })
   
@@ -677,7 +695,7 @@ server <- function(input, output){
         axis.title= element_text(size = 24))+
       theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))
     p
-  }Clone the repo git clone ...
+  }
   
   
   #***********************************************************************************************
