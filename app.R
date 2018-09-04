@@ -500,26 +500,30 @@ server <- function(input, output){
           tabPanel(title="ANOVA",
             selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
             actionButton("make_anova","Calculate ANOVA"),
-            plotOutput("anova_plot")
+            plotOutput("anova_plot"),
+            uiOutput("download_shapes_anova_ui")
           ),
           tabPanel(title="Trends",
             selectInput("dep_var","Y-axis",s,"area"),
             selectInput("color_by","Color By",des,des[1]),
             selectInput("facet_by","Facet By",des,des[2]),
-            plotOutput("trends_plot")
+            plotOutput("trends_plot"),
+            uiOutput("download_shapes_trends_ui")
           ),
           tabPanel(title="Heatmap",
             selectInput("h_color_by","Color By",s,"area"),
             selectInput("h_group_by","Group By",des,des[1]),
             selectInput("h_facet_by","Facet By",des,des[2]),
-            plotOutput("trends_heatmap")
+            plotOutput("trends_heatmap"),
+            uiOutput("download_shapes_heatmap_ui")
           ),
           tabPanel(title="Boxplots",
             selectInput("box_dep_var","Y-axis",s,"area"),
             selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
             selectInput("box_group_by","Group By",des,des[1]),
             selectInput("box_facet_by","Facet By",des,des[2]),
-            plotOutput("boxplot_shapes")
+            plotOutput("boxplot_shapes"),
+            uiOutput("download_shapes_boxplot_ui")
           )
         )
       ) 
@@ -565,6 +569,28 @@ server <- function(input, output){
     removeNotification(id)
   })
   
+  shapes_anova <- reactive({
+    if(!is.null(anova_dat$data)){
+      ggplot(data=anova_dat$data,aes(Shape,value*100))+
+        geom_bar(stat = "identity",aes(fill=variable))+
+        scale_fill_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))+
+        ylab("Variance Explained (%)")+
+        theme_bw()+
+        theme(strip.background=element_rect(fill="gray50"),
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))+
+        theme(axis.text = element_text(size = 14),
+              axis.title.y= element_text(size = 18),
+              axis.title.x = element_blank())+
+        theme(axis.ticks.length=unit(0.2,"cm"),
+              plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
+        theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
+        theme(legend.position = "top")+
+        guides(fill = guide_legend(title = ""))+
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+    }
+  })
+  
   output$anova_plot <- renderPlot({
     if(!is.null(anova_dat$data)){
       ggplot(data=anova_dat$data,aes(Shape,value*100))+
@@ -587,10 +613,35 @@ server <- function(input, output){
     }
   })
   
+    output$shapes_anova_download <- downloadHandler(
+      filename = function() {"shapes_anova.png"},
+      content=function(file){
+        ggsave(file,shapes_anova(),device = "png",width = 8,height = 4,dpi = 300)
+      })
+    
+    output$download_shapes_anova_ui <- renderUI({
+      if(!is.null(anova_dat$data)){
+        downloadButton("shapes_anova_download","Download Plot")
+      }
+    })
+  
   
   #***********************************************************************************************
   # Trends plots box
   #***********************************************************************************************
+   shapes_trends <- reactive({
+      ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
+        facet_grid(~eval(parse(text=input$facet_by)))+
+        geom_smooth(aes_string(color=input$color_by))+
+        ylab(input$dep_var)+
+        theme_light()+
+        theme(axis.text = element_text(size = 14),
+              axis.title= element_text(size = 18))+
+        theme(strip.background=element_rect(fill="gray50"),
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))
+    })
+    
   output$trends_plot <- renderPlot({
     ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
       facet_grid(~eval(parse(text=input$facet_by)))+
@@ -603,11 +654,40 @@ server <- function(input, output){
         strip.text.x=element_text(size=14,color="white"),
         strip.text.y=element_text(size=14,color="white"))
   })
+    
+  output$shapes_trends_download <- downloadHandler(
+      filename = function() {"shapes_trends.png"},
+      content=function(file){
+        ggsave(file,shapes_trends(),device = "png",width = 8,height = 4,dpi = 300)
+      })
+    
+    output$download_shapes_trends_ui <- renderUI({
+      if(!is.null(merged$data)){
+        downloadButton("shapes_trends_download","Download Plot")
+      }
+    })
   
   
   #***********************************************************************************************
   # Growth heatmap box
   #***********************************************************************************************
+  shapes_heatmap <- reactive({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
+    df <- aggregate(data=merged$data,fmla,FUN = "mean")
+    colnames(df)[ncol(df)] <- input$h_color_by
+    ggplot(df,aes_string("DAP",input$h_group_by))+
+      facet_grid(~eval(parse(text=input$h_facet_by)))+
+      geom_tile(aes_string(fill=input$h_color_by))+
+      ylab(input$h_group_by)+
+      theme_light()+
+      theme(axis.text = element_text(size = 14),
+            axis.title= element_text(size = 18))+
+      theme(strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+  })
+    
   output$trends_heatmap <- renderPlot({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
@@ -625,9 +705,36 @@ server <- function(input, output){
         strip.text.y=element_text(size=14,color="white"))
   })
   
+  output$shapes_heatmap_download <- downloadHandler(
+    filename = function() {"shapes_heatmap.png"},
+    content=function(file){
+      ggsave(file,shapes_heatmap(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_shapes_heatmap_ui <- renderUI({
+    if(!is.null(design$data)){
+      downloadButton("shapes_heatmap_download","Download Plot")
+    }
+  })
+  
   #***********************************************************************************************
   # Shapes Boxplots
   #***********************************************************************************************
+  shapes_boxplot <- reactive({
+    ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_group_by,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
+      facet_grid(~eval(parse(text=input$box_facet_by)))+
+      geom_boxplot()+
+      ylab(input$box_dep_var)+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))+
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+  
   output$boxplot_shapes <- renderPlot({
     ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_group_by,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
       facet_grid(~eval(parse(text=input$box_facet_by)))+
@@ -641,6 +748,18 @@ server <- function(input, output){
         strip.text.x=element_text(size=14,color="white"),
         strip.text.y=element_text(size=14,color="white"))+
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+  
+  output$shapes_boxplot_download <- downloadHandler(
+    filename = function() {"shapes_boxplot.png"},
+    content=function(file){
+      ggsave(file,shapes_boxplot(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_shapes_boxplot_ui <- renderUI({
+    if(!is.null(merged$data)){
+      downloadButton("shapes_boxplot_download","Download Plot")
+    }
   })
 
   #***********************************************************************************************
@@ -710,19 +829,64 @@ server <- function(input, output){
           tabPanel(title = "PCA",
             selectInput("vis_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP),na.rm = T)),
             selectInput("vis_color_by","Color By",des,des[1]),
-            plotOutput("vis_pca")
+            plotOutput("vis_pca"),
+            uiOutput("download_vis_pca_ui")
           ),
           tabPanel(title="Joyplot",
             selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
-            plotOutput("vis_joyplot")
+            plotOutput("vis_joyplot"),
+            uiOutput("download_vis_joyplot_ui")
           )
         )
       ) 
     }
   })
   
+  make_vis_pca <- reactive({
+    makePCA(vis$data,input$vis_which_day,2,181,input$vis_color_by)
+  })
+  
   output$vis_pca <- renderPlot({
     makePCA(vis$data,input$vis_which_day,2,181,input$vis_color_by)
+  })
+  
+  output$vis_pca_download <- downloadHandler(
+    filename = function() {"vis_pca.png"},
+    content=function(file){
+      ggsave(file,make_vis_pca(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_vis_pca_ui <- renderUI({
+    if(!is.null(vis$data)){
+      downloadButton("vis_pca_download","Download Plot")
+    }
+  })
+  
+  vis_joyplot <- reactive({
+    sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
+    test_avg <- hist_avg(sub,start = 2,stop = 181)
+    test_sd <- hist_sd(sub,start = 2,stop = 181)
+    test_avg <- data.frame(melt(t(test_avg)))
+    test_avg$sd <- data.frame(melt(t(test_sd)))[,3]
+    test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
+    test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
+    test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
+    
+    ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
+      facet_grid(~meta2)+
+      geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
+      scale_x_continuous(breaks = c(0,90,180,270,360))+
+      ylab("")+
+      xlab("Hue Channel")+
+      theme_ridges(grid=T,center_axis_labels = T)+
+      theme(legend.position='none')+
+      theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))+
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
   
   output$vis_joyplot <- renderPlot({
@@ -753,6 +917,17 @@ server <- function(input, output){
     
   })
   
+  output$vis_joyplot_download <- downloadHandler(
+    filename = function() {"vis_joyplot.png"},
+    content=function(file){
+      ggsave(file,vis_joyplot(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_vis_joyplot_ui <- renderUI({
+    if(!is.null(vis$data)){
+      downloadButton("vis_joyplot_download","Download Plot")
+    }
+  })
   
   
   #***********************************************************************************************
@@ -773,7 +948,10 @@ server <- function(input, output){
             selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
             selectInput("nir_collapse_by", "Collapse By",des,des[1]),
             plotOutput("nir_heatmap_nofacet"),
-            plotOutput("nir_heatmap_withfacet")
+            uiOutput("download_nir_heatmap_nofacet_ui"),
+            br(),
+            plotOutput("nir_heatmap_withfacet"),
+            uiOutput("download_nir_heatmap_facet_ui")
           )
         )
       )
@@ -800,6 +978,21 @@ server <- function(input, output){
     }
   })
   
+  nir_heatmap_nofacet <- reactive({
+      test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
+      ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
+      ylab(input$nir_collapse_by)+
+      geom_tile(aes(fill=intensityAVG))+
+      scale_fill_gradient2(midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+          axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+          strip.background=element_rect(fill="gray50"),
+          strip.text.x=element_text(size=14,color="white"),
+          strip.text.y=element_text(size=14,color="white"))
+  })
+  
   output$nir_heatmap_nofacet <- renderPlot({
     test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
     ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
@@ -813,6 +1006,34 @@ server <- function(input, output){
         strip.background=element_rect(fill="gray50"),
         strip.text.x=element_text(size=14,color="white"),
         strip.text.y=element_text(size=14,color="white"))
+  })
+  
+  output$nir_heatmap_nofacet_download <- downloadHandler(
+    filename = function() {"nir_heatmap_nofacet.png"},
+    content=function(file){
+      ggsave(file,nir_heatmap_nofacet(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_nir_heatmap_nofacet_ui <- renderUI({
+    if(!is.null(nir$data)){
+      downloadButton("nir_heatmap_nofacet_download","Download Plot")
+    }
+  })
+  
+  nir_heatmap_facet <- reactive({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",des[1],"+",des[2],"+DAP")),FUN = function(i)mean(i,na.rm=T))
+    ggplot(test,aes_string("DAP",des[1]))+
+      facet_grid(~eval(parse(text=des[2])))+
+      geom_tile(aes(fill=intensityAVG))+
+      scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
   })
   
   output$nir_heatmap_withfacet <- renderPlot({
@@ -829,6 +1050,18 @@ server <- function(input, output){
         strip.background=element_rect(fill="gray50"),
         strip.text.x=element_text(size=14,color="white"),
         strip.text.y=element_text(size=14,color="white"))
+  })
+  
+  output$nir_heatmap_facet_download <- downloadHandler(
+    filename = function() {"nir_heatmap_facet.png"},
+    content=function(file){
+      ggsave(file,nir_heatmap_facet(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_nir_heatmap_facet_ui <- renderUI({
+    if(!is.null(nir$data)){
+      downloadButton("nir_heatmap_facet_download","Download Plot")
+    }
   })
   
 }
