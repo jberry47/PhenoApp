@@ -481,9 +481,11 @@ server <- function(input, output){
       outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
       outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
       outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
-      nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
-      nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
-      nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),] 
+      if(input$pheno_nir_q == "Yes"){
+        nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
+        nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
+        nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),] 
+      }
     }
     removeNotification(id)
   })
@@ -658,7 +660,7 @@ server <- function(input, output){
   output$shapes_trends_download <- downloadHandler(
       filename = function() {"shapes_trends.png"},
       content=function(file){
-        ggsave(file,shapes_trends(),device = "png",width = 8,height = 4,dpi = 300)
+        ggsave(file,shapes_trends(),device = "png",width = 5.5,height = 4,dpi = 300)
       })
     
     output$download_shapes_trends_ui <- renderUI({
