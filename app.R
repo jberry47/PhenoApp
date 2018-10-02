@@ -813,6 +813,7 @@ server <- function(input, output){
       geom_vline(xintercept = 0,linetype="dashed")+
       geom_hline(yintercept = 0,linetype="dashed")+
       theme_minimal()+
+      theme(legend.title=element_blank())+
       theme(axis.text = element_text(size = 18),
         axis.title= element_text(size = 24))+
       theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))
