@@ -242,16 +242,16 @@ server <- function(input, output){
     
     id <- showNotification(h3("Reading shapes file..."), duration = NULL)
     sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
-    sv_shapes <- sv_shapes[,-(as.numeric(which(apply(sv_shapes,2,FUN=function(i)all(is.na(i))))))]
-    
-    if(ncol(sv_shapes)==21){
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","det")
+    sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
+
+    if(ncol(sv_shapes)==22){
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof","det")
       shapes$data <- sv_shapes
-    }else if(ncol(sv_shapes)==20){
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd")
+    }else if(ncol(sv_shapes)==21){
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof","fd")
       shapes$data <- sv_shapes
     }else{
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar")
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof")
       shapes$data <- sv_shapes
     }
   
