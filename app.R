@@ -323,7 +323,7 @@ server <- function(input, output){
     id <- showNotification(h3("Querying db for data..."), duration = NULL)
     meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
     shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features NATURAL JOIN signal WHERE signal.channel_name = "hue"')
-    shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
+    #shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
     removeNotification(id)
     
     id <- showNotification(h3("Extracting color data..."), duration = NULL)
