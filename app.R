@@ -19,161 +19,161 @@ library(car)
 
 
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
-  dashboardHeader(
-    title = tagList(
-      tags$span(
-        class = "logo-mini", "PAT"
-      ),
-      tags$span(
-        class = "logo-lg", "Phenotyper Analysis Tool"
-      )
-    ),
-    titleWidth = 450
-  ),
-  dashboardSidebar(
-    tags$script(HTML("$('body').addClass('sidebar-mini');")),
-    width = 150,
-    sidebarMenu(
-      menuItem("Overview", tabName = "overview"),
-      menuItem("Get Started",tabName = "get_started")
-    )
-  ),
-  dashboardBody(
-    fluidRow(
-    tags$head(tags$style("#container * {display: inline;}")),
-    tags$style(HTML("
-      .tabbable > .nav > li[class=active]    > a {background-color: #444444; color:white}
-      .multicol{
-      -webkit-column-count: 4; /* Chrome, Safari, Opera */
-      -moz-column-count: 4; /* Firefox */
-      column-count: 4;
-      }
-      .twocol{
-      -webkit-column-count: 2; /* Chrome, Safari, Opera */
-      -moz-column-count: 2; /* Firefox */
-      column-count: 2;
-      }
-      .warning { 
-      color: red;
-      }"
+                    dashboardHeader(
+                      title = tagList(
+                        tags$span(
+                          class = "logo-mini", "PAT"
+                        ),
+                        tags$span(
+                          class = "logo-lg", "Phenotyper Analysis Tool"
+                        )
+                      ),
+                      titleWidth = 450
+                    ),
+                    dashboardSidebar(
+                      tags$script(HTML("$('body').addClass('sidebar-mini');")),
+                      width = 150,
+                      sidebarMenu(
+                        menuItem("Overview", tabName = "overview"),
+                        menuItem("Get Started",tabName = "get_started")
+                      )
+                    ),
+                    dashboardBody(
+                      fluidRow(
+                        tags$head(tags$style("#container * {display: inline;}")),
+                        tags$style(HTML("
+                                        .tabbable > .nav > li[class=active]    > a {background-color: #444444; color:white}
+                                        .multicol{
+                                        -webkit-column-count: 4; /* Chrome, Safari, Opera */
+                                        -moz-column-count: 4; /* Firefox */
+                                        column-count: 4;
+                                        }
+                                        .twocol{
+                                        -webkit-column-count: 2; /* Chrome, Safari, Opera */
+                                        -moz-column-count: 2; /* Firefox */
+                                        column-count: 2;
+                                        }
+                                        .warning { 
+                                        color: red;
+                                        }"
                       )),
-    tabItems(
-      tabItem(tabName = "overview",
-        box(width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("This analysis tool is designed to take input from either PlantCV or PhenotyperCV that was used to process images from 
-            the Bellweather Phenotyping Facility at Donald Danforth Plant Science Center. Depending on what program was used to 
-            analyze the images, there is a different import process. In both cases, after importing, four more boxes will appear: Outlier 
-            Detection and Removal, Shapes Analysis, VIS Analysis, and NIR Analysis. These analyses are intended to be a first pass look 
-            at data from this facility and does not perform any statistical inferences. If an effect is observed, it is
-            required that proper statistical is testing is done outside of this framework.")
-        ),
-        box(width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. This file is the link that takes the barcode of a plant and assigns the
-            the design parameters. So at most there should be 1141 rows in this file. See last paragraph in this box for exceptions. There are a couple of rules that 
-            need to be followed for this tool to work properly."),
-          tags$ul(
-            tags$li("There must be a column called ",tags$b("Barcodes"),"with exactly this
-            spelling."),
-            tags$li("The other columns in this file shouldn't have any entries that have a ",code("."),"in them. For example sorghum has a genotype 
-            commonly called B.Az9504 and if this is how it's labeled in this file, things will turn out funny. Please edit entries such 
-            as this."),
-            tags$li("While this tool is setup to handle more than two design columns, many of the analyses are
-            coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that, consider doing
-            all analyses outside of this framework.")
-          ),
-          p("The first row of the design file should be: Barcodes, Var1, Var2. Where Var1 and Var2 could be called anything. The first 10 rows of two example design files are
-            shown here. "),
-          column(6,
-            tableOutput("design_ex1")),
-          column(6,
-            tableOutput("design_ex2")),
-          p("If you only want to analyze a subset of your data, outside of this framework, select only those things you which to look 
-            at in the design file and upload that. The merging process will remove plants from the dataset where there is no matching barcode 
-            in the design file. ")
-        ),
-        box(width=5,title = "Importing from PhenotyperCV",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("When processing images using this program, there are 5 files, 4 of which are required: design, snapshot, shapes, color, and nir-color (optional). 
-             The design file is shown above and the snapshot file is the one that came with the image download (SnapshotInfo.csv). For the 
-             shapes, color and nir-color files, these are created when running PhenotyperCV and no alterations are required to load the
-             data into this framework. For example: "),
-          code("find Images/ -name 'VIS_SV*' | xargs -P8 -I{} ./PhenotyperCV VIS_CH {} vis_background_image.png shapes.txt color.txt"),
-          p("created shapes.txt and color.txt and"),
-          code("find Images/ -name 'NIR_SV*' | xargs -P8 -I{} ./PhenotyperCV NIR {} nir_background_image.png nir_color.txt"),
-          p("created nir_color.txt")
-        ),
-        box(width=5,title = "Importing from PlantCV",solidHeader = T,status = 'success',collapsible = TRUE,
-          p("When processing images using this program, there are 2 files that are required: design, and sqlite3. The design file is shown 
-            above and the sqlite3 file is created when running PlantCV with the",code("-s"), "flag. An example bash script to run image
-            analysis using this program and getting a sqlite3 file out is shown here:"),
-          code("#!/bin/bash",br(),"
-                /home/jberry/plantcv/plantcv-pipeline.py \\",br(),"
-                -d /home/jberry/Phenotyper/Exp2 \\",br(),"
-                -a phenofront \\",br(),"
-                -p /home/jberry/Phenotyper/vis_sv_z1_L0.py \\",br(),"
-                -i /home/jberry/Phenotyper/plantcv_SV_output \\",br(),"
-                -T 40 \\",br(),"
-                -c \\",br(),"
-                -s PlantCV_SV_drought.sqlite3 \\",br(),"
-                -f imgtype_camera_frame_zoom_lifter_gain_exposure_other_id\\",br(),"
-                -M imgtype:VIS,camera:SV \\",br(),"
-                -t png \\",br(),"
-                -C NIR"),
-          p("which creates the PlantCV_SV_drought.sqlite3 file."),
-          p("PlantCV allows for co-processing the NIR images along side of the VIS images and that is done with the",code("-C"),"flag. This import
-            method is designed to handle with and without the NIR data."),
-          div(id="container",p("For more information about PlantCV, click "),tags$a(href="https://plantcv.readthedocs.io/en/latest/","here",target="_blank"))
-        )
-      ),
-      tabItem(tabName = "get_started",
-        box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
-          h5("How many days before the first day of imaging were the plants planted?"),
-          textInput("dap_offset", "DAP Offset", value = 2,width=80),
-          br(),
-          tabsetPanel(
-            tabPanel(title="PhenotyperCV",
-              fileInput("phenocv_design_file", "Choose design file",
-                multiple = F,
-                accept = c(".csv")),
-              fileInput("phenocv_snapshot_file", "Choose snapshot file",
-                multiple = F,
-                accept = c(".csv")),
-              fileInput("phenocv_shapes_file", "Choose shapes file",
-                multiple = F,
-                accept = c(".txt")),
-              fileInput("phenocv_color_file", "Choose color file",
-                multiple = F,
-                accept = c(".txt")),
-              radioButtons("pheno_nir_q", "Analyze NIR data",choices = c("Yes"="Yes","No"="No")),
-              uiOutput("phenocv_nir_q_ui"),
-              uiOutput("phenocv_go_ui")
-            ),
-            tabPanel(title = "PlantCV",
-              fileInput("plantcv_design_file", "Choose design file",
-                multiple = F,
-                accept = c(".csv")),
-              fileInput("plantcv_sql_path", "Choose sqlite3 database",
-                multiple = F,
-                accept = c(".sqlite3")),
-              uiOutput("plantcv_go_ui")
-            )
-          )
-        ),
-        uiOutput("outlier_removal"),
-        uiOutput("shapes_ui"),
-        uiOutput("vis_ui"),
-        uiOutput("nir_ui")
-      )
-    )
-    )
-  )
-  )
+                      tabItems(
+                        tabItem(tabName = "overview",
+                                box(width=10,title = "Welcome",solidHeader = T,status = 'success',collapsible = TRUE,
+                                    p("This analysis tool is designed to take input from either PlantCV or PhenotyperCV that was used to process images from 
+                                      the Bellweather Phenotyping Facility at Donald Danforth Plant Science Center. Depending on what program was used to 
+                                      analyze the images, there is a different import process. In both cases, after importing, four more boxes will appear: Outlier 
+                                      Detection and Removal, Shapes Analysis, VIS Analysis, and NIR Analysis. These analyses are intended to be a first pass look 
+                                      at data from this facility and does not perform any statistical inferences. If an effect is observed, it is
+                                      required that proper statistical is testing is done outside of this framework.")
+                                    ),
+                                box(width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
+                                    p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. This file is the link that takes the barcode of a plant and assigns the
+                                      the design parameters. So at most there should be 1141 rows in this file. See last paragraph in this box for exceptions. There are a couple of rules that 
+                                      need to be followed for this tool to work properly."),
+                                    tags$ul(
+                                      tags$li("There must be a column called ",tags$b("Barcodes"),"with exactly this
+                                              spelling."),
+                                      tags$li("The other columns in this file shouldn't have any entries that have a ",code("."),"in them. For example sorghum has a genotype 
+                                              commonly called B.Az9504 and if this is how it's labeled in this file, things will turn out funny. Please edit entries such 
+                                              as this."),
+                                      tags$li("While this tool is setup to handle more than two design columns, many of the analyses are
+                                              coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that, consider doing
+                                              all analyses outside of this framework.")
+                                      ),
+                                    p("The first row of the design file should be: Barcodes, Var1, Var2. Where Var1 and Var2 could be called anything. The first 10 rows of two example design files are
+                                      shown here. "),
+                                    column(6,
+                                           tableOutput("design_ex1")),
+                                    column(6,
+                                           tableOutput("design_ex2")),
+                                    p("If you only want to analyze a subset of your data, outside of this framework, select only those things you which to look 
+                                      at in the design file and upload that. The merging process will remove plants from the dataset where there is no matching barcode 
+                                      in the design file. ")
+                                    ),
+                                box(width=5,title = "Importing from PhenotyperCV",solidHeader = T,status = 'success',collapsible = TRUE,
+                                    p("When processing images using this program, there are 5 files, 4 of which are required: design, snapshot, shapes, color, and nir-color (optional). 
+                                      The design file is shown above and the snapshot file is the one that came with the image download (SnapshotInfo.csv). For the 
+                                      shapes, color and nir-color files, these are created when running PhenotyperCV and no alterations are required to load the
+                                      data into this framework. For example: "),
+                                    code("find Images/ -name 'VIS_SV*' | xargs -P8 -I{} ./PhenotyperCV VIS_CH {} vis_background_image.png shapes.txt color.txt"),
+                                    p("created shapes.txt and color.txt and"),
+                                    code("find Images/ -name 'NIR_SV*' | xargs -P8 -I{} ./PhenotyperCV NIR {} nir_background_image.png nir_color.txt"),
+                                    p("created nir_color.txt")
+                                    ),
+                                box(width=5,title = "Importing from PlantCV",solidHeader = T,status = 'success',collapsible = TRUE,
+                                    p("When processing images using this program, there are 2 files that are required: design, and sqlite3. The design file is shown 
+                                      above and the sqlite3 file is created when running PlantCV with the",code("-s"), "flag. An example bash script to run image
+                                      analysis using this program and getting a sqlite3 file out is shown here:"),
+                                    code("#!/bin/bash",br(),"
+                                         /home/jberry/plantcv/plantcv-pipeline.py \\",br(),"
+                                         -d /home/jberry/Phenotyper/Exp2 \\",br(),"
+                                         -a phenofront \\",br(),"
+                                         -p /home/jberry/Phenotyper/vis_sv_z1_L0.py \\",br(),"
+                                         -i /home/jberry/Phenotyper/plantcv_SV_output \\",br(),"
+                                         -T 40 \\",br(),"
+                                         -c \\",br(),"
+                                         -s PlantCV_SV_drought.sqlite3 \\",br(),"
+                                         -f imgtype_camera_frame_zoom_lifter_gain_exposure_other_id\\",br(),"
+                                         -M imgtype:VIS,camera:SV \\",br(),"
+                                         -t png \\",br(),"
+                                         -C NIR"),
+                                    p("which creates the PlantCV_SV_drought.sqlite3 file."),
+                                    p("PlantCV allows for co-processing the NIR images along side of the VIS images and that is done with the",code("-C"),"flag. This import
+                                      method is designed to handle with and without the NIR data."),
+                                    div(id="container",p("For more information about PlantCV, click "),tags$a(href="https://plantcv.readthedocs.io/en/latest/","here",target="_blank"))
+                                    )
+                                    ),
+                        tabItem(tabName = "get_started",
+                                box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
+                                    h5("How many days before the first day of imaging were the plants planted?"),
+                                    textInput("dap_offset", "DAP Offset", value = 2,width=80),
+                                    br(),
+                                    tabsetPanel(
+                                      tabPanel(title="PhenotyperCV",
+                                               fileInput("phenocv_design_file", "Choose design file",
+                                                         multiple = F,
+                                                         accept = c(".csv")),
+                                               fileInput("phenocv_snapshot_file", "Choose snapshot file",
+                                                         multiple = F,
+                                                         accept = c(".csv")),
+                                               fileInput("phenocv_shapes_file", "Choose shapes file",
+                                                         multiple = F,
+                                                         accept = c(".txt")),
+                                               fileInput("phenocv_color_file", "Choose color file",
+                                                         multiple = F,
+                                                         accept = c(".txt")),
+                                               radioButtons("pheno_nir_q", "Analyze NIR data",choices = c("Yes"="Yes","No"="No")),
+                                               uiOutput("phenocv_nir_q_ui"),
+                                               uiOutput("phenocv_go_ui")
+                                      ),
+                                      tabPanel(title = "PlantCV",
+                                               fileInput("plantcv_design_file", "Choose design file",
+                                                         multiple = F,
+                                                         accept = c(".csv")),
+                                               fileInput("plantcv_sql_path", "Choose sqlite3 database",
+                                                         multiple = F,
+                                                         accept = c(".sqlite3")),
+                                               uiOutput("plantcv_go_ui")
+                                      )
+                                    )
+                                ),
+                                uiOutput("outlier_removal"),
+                                uiOutput("shapes_ui"),
+                                uiOutput("vis_ui"),
+                                uiOutput("nir_ui")
+                        )
+                                )
+                                    )
+                                    )
+                      )
 
 server <- function(input, output){
   output$phenocv_nir_q_ui <- renderUI({
     if(input$pheno_nir_q == "Yes"){
       fileInput("phenocv_nir_file", "Choose nir file",
-        multiple = F,
-        accept = c(".txt"))
+                multiple = F,
+                accept = c(".txt"))
     }
   })
   
@@ -243,7 +243,7 @@ server <- function(input, output){
     id <- showNotification(h3("Reading shapes file..."), duration = NULL)
     sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
     sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
-
+    
     if(ncol(sv_shapes)==22){
       colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof","det")
       shapes$data <- sv_shapes
@@ -254,7 +254,7 @@ server <- function(input, output){
       colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof")
       shapes$data <- sv_shapes
     }
-  
+    
     sv_shapes$id <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
     sv_shapes$imgname <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))
     removeNotification(id)
@@ -307,6 +307,7 @@ server <- function(input, output){
     
   })
   
+  #Data import
   observeEvent(input$plantcv_merge,{
     from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
@@ -322,6 +323,7 @@ server <- function(input, output){
     
     id <- showNotification(h3("Querying db for data..."), duration = NULL)
     meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
+    <<<<<<< refs/remotes/origin/master
     shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features NATURAL JOIN signal WHERE signal.channel_name = "hue"')
     #shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
     removeNotification(id)
@@ -331,13 +333,18 @@ server <- function(input, output){
     shapes.df <- shapes.df[,(colnames(shapes.df)[!colnames(shapes.df) %in% c("bin-number","channel_name","values")])]
     colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
     colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
+    =======
+      shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
+    shapes.df <- shapes.df[shapes.df$imgtype == "VIS",]
+    shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
+    >>>>>>> Fixed vis and nir boxes
     removeNotification(id)
     
     id <- showNotification(h3("Joining design file..."), duration = NULL)
+    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
+    #shapes.df <- shapes.df[,(colnames(shapes.df)[!colnames(shapes.df) %in% c("bin-number","channel_name","values")])]
     sv_shapes <- join(shapes.df,assoc,by="Barcodes")
     sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
-    vis.df <- join(vis.df,assoc,by="Barcodes")
-    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
     removeNotification(id)
     
     id <- showNotification(h3("Adding time columns..."), duration = NULL)
@@ -345,20 +352,55 @@ server <- function(input, output){
     beg <- min(sv_shapes$timestamp)
     sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
     sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
-    vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
-    vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
-    vis.df$hour <- lubridate::hour(vis.df$timestamp)
+    sv_shapes$timestamp <- as.character(sv_shapes$timestamp)
     removeNotification(id)
     
     id <- showNotification(h3("Removing empty pots..."), duration = NULL)
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
-    vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !(vis.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-    vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
     sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
     colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
     removeNotification(id)
-
+    
+    #VIS data organization
+    id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
+    vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
+    print(head(vis.df))
+    if(nrow(vis.df)!= 0){
+      vis.df <- vis.df[,which(!apply(vis.df == 0, 2, all))]
+      colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
+      vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
+      removeNotification(id)
+      
+      id <- showNotification(h3("Joining with design..."), duration = NULL)
+      vis.df <- join(vis.df,assoc,by="Barcodes")
+      vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
+      removeNotification(id)
+      
+      id <- showNotification(h3("Adding time columns..."), duration = NULL)
+      vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
+      vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+      vis.df$hour <- lubridate::hour(vis.df$timestamp)
+      vis.df$timestamp <- as.character(vis.df$timestamp)
+      removeNotification(id)
+      
+      id <- showNotification(h3("Removing empty pots..."), duration = NULL)
+      vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !(vis.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+      vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
+      removeNotification(id)
+      
+      id <- showNotification(h3("Merging shapes data..."), duration = NULL)
+      vis_shapes <- join(vis.df, sv_shapes, by = c("image_id","zoom","camera","cartag","exposure","frame","gain","id","imgtype","lifter","Line_name","measurementlabel","other","run_id","treatment","Treatment","Barcodes","timestamp","hour","DAP"))
+      sv_shapes <- vis_shapes[,c(colnames(sv_shapes))]
+      vis$data <- vis_shapes[,c(colnames(vis.df))]
+      removeNotification(id)
+    }else{
+      removeNotification(id)
+      id <- showNotification(h3("No VIS data detected"), duration = 1)
+      vis$data <- NULL
+    }
+    
+    #NIR data organization
     id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
     nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
     if(nrow(nir.df)!= 0){
@@ -371,7 +413,7 @@ server <- function(input, output){
       nir.df <- join(nir.df,assoc,by="Barcodes")
       nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
       removeNotification(id)
-
+      
       id <- showNotification(h3("Adding time columns..."), duration = NULL)
       nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
       nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
@@ -389,11 +431,10 @@ server <- function(input, output){
       id <- showNotification(h3("No NIR data detected"), duration = 1)
       nir$data <- NULL
     }
-
+    
     merged$data <- sv_shapes
     shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
-    vis$data <- vis.df
-
+    
     id <- showNotification(h3("Done!"), duration = 1)
     dbDisconnect(conn)
   })
@@ -404,13 +445,13 @@ server <- function(input, output){
   output$outlier_removal <- renderUI({
     if(!is.null(merged$data)){
       box(width=10,title = "Outlier Detection and Removal",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-        p("This step is not required"),
-        actionButton("detect_outliers","Detect Outliers"),
-        textOutput("num_outliers"),
-        plotOutput("cooksd_plot"),
-        uiOutput("remove_outliers_ui"),
-        br(),
-        uiOutput("download_cooks_ui")
+          p("This step is not required"),
+          actionButton("detect_outliers","Detect Outliers"),
+          textOutput("num_outliers"),
+          plotOutput("cooksd_plot"),
+          uiOutput("remove_outliers_ui"),
+          br(),
+          uiOutput("download_cooks_ui")
       ) 
     }
   })
@@ -472,8 +513,12 @@ server <- function(input, output){
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
     if(from$data == "plantcv"){
-      nir$data <- nir$data[cooksd$data < 3*mean(cooksd$data),]
-      vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
+      if(!is.null(vis$data)){
+        vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
+      }
+      if(!is.null(nir$data)){
+        nir$data <- nir$data[cooksd$data < 3*mean(cooksd$data),]
+      }
     }else{
       vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
       outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
@@ -496,36 +541,36 @@ server <- function(input, output){
     s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
     if(!is.null(merged$data)){
       box(width=10,title = "Shapes Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-        tabsetPanel(
-          tabPanel(title="ANOVA",
-            selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
-            actionButton("make_anova","Calculate ANOVA"),
-            plotOutput("anova_plot"),
-            uiOutput("download_shapes_anova_ui")
-          ),
-          tabPanel(title="Trends",
-            selectInput("dep_var","Y-axis",s,"area"),
-            selectInput("color_by","Color By",des,des[1]),
-            selectInput("facet_by","Facet By",des,des[2]),
-            plotOutput("trends_plot"),
-            uiOutput("download_shapes_trends_ui")
-          ),
-          tabPanel(title="Heatmap",
-            selectInput("h_color_by","Color By",s,"area"),
-            selectInput("h_group_by","Group By",des,des[1]),
-            selectInput("h_facet_by","Facet By",des,des[2]),
-            plotOutput("trends_heatmap"),
-            uiOutput("download_shapes_heatmap_ui")
-          ),
-          tabPanel(title="Boxplots",
-            selectInput("box_dep_var","Y-axis",s,"area"),
-            selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
-            selectInput("box_group_by","Group By",des,des[1]),
-            selectInput("box_facet_by","Facet By",des,des[2]),
-            plotOutput("boxplot_shapes"),
-            uiOutput("download_shapes_boxplot_ui")
+          tabsetPanel(
+            tabPanel(title="ANOVA",
+                     selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
+                     actionButton("make_anova","Calculate ANOVA"),
+                     plotOutput("anova_plot"),
+                     uiOutput("download_shapes_anova_ui")
+            ),
+            tabPanel(title="Trends",
+                     selectInput("dep_var","Y-axis",s,"area"),
+                     selectInput("color_by","Color By",des,des[1]),
+                     selectInput("facet_by","Facet By",des,des[2]),
+                     plotOutput("trends_plot"),
+                     uiOutput("download_shapes_trends_ui")
+            ),
+            tabPanel(title="Heatmap",
+                     selectInput("h_color_by","Color By",s,"area"),
+                     selectInput("h_group_by","Group By",des,des[1]),
+                     selectInput("h_facet_by","Facet By",des,des[2]),
+                     plotOutput("trends_heatmap"),
+                     uiOutput("download_shapes_heatmap_ui")
+            ),
+            tabPanel(title="Boxplots",
+                     selectInput("box_dep_var","Y-axis",s,"area"),
+                     selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
+                     selectInput("box_group_by","Group By",des,des[1]),
+                     selectInput("box_facet_by","Facet By",des,des[2]),
+                     plotOutput("boxplot_shapes"),
+                     uiOutput("download_shapes_boxplot_ui")
+            )
           )
-        )
       ) 
     }
   })
@@ -553,9 +598,9 @@ server <- function(input, output){
       unexp <- 1-sum(re)/sum(re,res)
       
       h2 <- c((microbe.var/tot.var),
-        (drought.var/tot.var),
-        (interaction.var/tot.var),
-        unexp)
+              (drought.var/tot.var),
+              (interaction.var/tot.var),
+              unexp)
       H2 <- rbind(H2,h2)
     }
     H2 <- data.frame(H2,row.names = s)
@@ -599,13 +644,13 @@ server <- function(input, output){
         ylab("Variance Explained (%)")+
         theme_bw()+
         theme(strip.background=element_rect(fill="gray50"),
-          strip.text.x=element_text(size=14,color="white"),
-          strip.text.y=element_text(size=14,color="white"))+
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))+
         theme(axis.text = element_text(size = 14),
-          axis.title.y= element_text(size = 18),
-          axis.title.x = element_blank())+
+              axis.title.y= element_text(size = 18),
+              axis.title.x = element_blank())+
         theme(axis.ticks.length=unit(0.2,"cm"),
-          plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
+              plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
         theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
         theme(legend.position = "top")+
         guides(fill = guide_legend(title = ""))+
@@ -613,35 +658,35 @@ server <- function(input, output){
     }
   })
   
-    output$shapes_anova_download <- downloadHandler(
-      filename = function() {"shapes_anova.png"},
-      content=function(file){
-        ggsave(file,shapes_anova(),device = "png",width = 8,height = 4,dpi = 300)
-      })
-    
-    output$download_shapes_anova_ui <- renderUI({
-      if(!is.null(anova_dat$data)){
-        downloadButton("shapes_anova_download","Download Plot")
-      }
+  output$shapes_anova_download <- downloadHandler(
+    filename = function() {"shapes_anova.png"},
+    content=function(file){
+      ggsave(file,shapes_anova(),device = "png",width = 8,height = 4,dpi = 300)
     })
+  
+  output$download_shapes_anova_ui <- renderUI({
+    if(!is.null(anova_dat$data)){
+      downloadButton("shapes_anova_download","Download Plot")
+    }
+  })
   
   
   #***********************************************************************************************
   # Trends plots box
   #***********************************************************************************************
-   shapes_trends <- reactive({
-      ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
-        facet_grid(~eval(parse(text=input$facet_by)))+
-        geom_smooth(aes_string(color=input$color_by))+
-        ylab(input$dep_var)+
-        theme_light()+
-        theme(axis.text = element_text(size = 14),
-              axis.title= element_text(size = 18))+
-        theme(strip.background=element_rect(fill="gray50"),
-              strip.text.x=element_text(size=14,color="white"),
-              strip.text.y=element_text(size=14,color="white"))
-    })
-    
+  shapes_trends <- reactive({
+    ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
+      facet_grid(~eval(parse(text=input$facet_by)))+
+      geom_smooth(aes_string(color=input$color_by))+
+      ylab(input$dep_var)+
+      theme_light()+
+      theme(axis.text = element_text(size = 14),
+            axis.title= element_text(size = 18))+
+      theme(strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+  })
+  
   output$trends_plot <- renderPlot({
     ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
       facet_grid(~eval(parse(text=input$facet_by)))+
@@ -649,23 +694,23 @@ server <- function(input, output){
       ylab(input$dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 14),
-        axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(strip.background=element_rect(fill="gray50"),
-        strip.text.x=element_text(size=14,color="white"),
-        strip.text.y=element_text(size=14,color="white"))
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
   })
-    
+  
   output$shapes_trends_download <- downloadHandler(
-      filename = function() {"shapes_trends.png"},
-      content=function(file){
-        ggsave(file,shapes_trends(),device = "png",width = 5.5,height = 4,dpi = 300)
-      })
-    
-    output$download_shapes_trends_ui <- renderUI({
-      if(!is.null(merged$data)){
-        downloadButton("shapes_trends_download","Download Plot")
-      }
+    filename = function() {"shapes_trends.png"},
+    content=function(file){
+      ggsave(file,shapes_trends(),device = "png",width = 5.5,height = 4,dpi = 300)
     })
+  
+  output$download_shapes_trends_ui <- renderUI({
+    if(!is.null(merged$data)){
+      downloadButton("shapes_trends_download","Download Plot")
+    }
+  })
   
   
   #***********************************************************************************************
@@ -687,7 +732,7 @@ server <- function(input, output){
             strip.text.x=element_text(size=14,color="white"),
             strip.text.y=element_text(size=14,color="white"))
   })
-    
+  
   output$trends_heatmap <- renderPlot({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
@@ -699,10 +744,10 @@ server <- function(input, output){
       ylab(input$h_group_by)+
       theme_light()+
       theme(axis.text = element_text(size = 14),
-        axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(strip.background=element_rect(fill="gray50"),
-        strip.text.x=element_text(size=14,color="white"),
-        strip.text.y=element_text(size=14,color="white"))
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
   })
   
   output$shapes_heatmap_download <- downloadHandler(
@@ -742,11 +787,11 @@ server <- function(input, output){
       ylab(input$box_dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-        axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-        strip.background=element_rect(fill="gray50"),
-        strip.text.x=element_text(size=14,color="white"),
-        strip.text.y=element_text(size=14,color="white"))+
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))+
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
   
@@ -761,7 +806,7 @@ server <- function(input, output){
       downloadButton("shapes_boxplot_download","Download Plot")
     }
   })
-
+  
   #***********************************************************************************************
   # Color Helpers
   #***********************************************************************************************
@@ -799,8 +844,8 @@ server <- function(input, output){
     sub <- data[data$DAP==day,]
     channel.pca <- PCA(sub[,start:stop],graph = F)
     pca_df <- data.frame("Treatment"=as.character(sub[,color_by]),
-      "PC1"=channel.pca$ind$coord[,1],
-      "PC2"=channel.pca$ind$coord[,2])
+                         "PC1"=channel.pca$ind$coord[,1],
+                         "PC2"=channel.pca$ind$coord[,2])
     varexp <- signif(c(channel.pca$eig[1,2],channel.pca$eig[2,2]),4)
     
     p <- ggplot(data=pca_df, aes(PC1,PC2))+
@@ -813,7 +858,7 @@ server <- function(input, output){
       theme_minimal()+
       theme(legend.title=element_blank())+
       theme(axis.text = element_text(size = 18),
-        axis.title= element_text(size = 24))+
+            axis.title= element_text(size = 24))+
       theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))
     p
   }
@@ -826,19 +871,19 @@ server <- function(input, output){
     if(!is.null(vis$data)){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
       box(width=10,title = "VIS Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-        tabsetPanel(
-          tabPanel(title = "PCA",
-            selectInput("vis_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP),na.rm = T)),
-            selectInput("vis_color_by","Color By",des,des[1]),
-            plotOutput("vis_pca"),
-            uiOutput("download_vis_pca_ui")
-          ),
-          tabPanel(title="Joyplot",
-            selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
-            plotOutput("vis_joyplot"),
-            uiOutput("download_vis_joyplot_ui")
+          tabsetPanel(
+            tabPanel(title = "PCA",
+                     selectInput("vis_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP),na.rm = T)),
+                     selectInput("vis_color_by","Color By",des,des[1]),
+                     plotOutput("vis_pca"),
+                     uiOutput("download_vis_pca_ui")
+            ),
+            tabPanel(title="Joyplot",
+                     selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
+                     plotOutput("vis_joyplot"),
+                     uiOutput("download_vis_joyplot_ui")
+            )
           )
-        )
       ) 
     }
   })
@@ -909,11 +954,11 @@ server <- function(input, output){
       theme_ridges(grid=T,center_axis_labels = T)+
       theme(legend.position='none')+
       theme(axis.text = element_text(size = 12),
-        axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-        strip.background=element_rect(fill="gray50"),
-        strip.text.x=element_text(size=14,color="white"),
-        strip.text.y=element_text(size=14,color="white"))+
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))+
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
     
   })
@@ -938,23 +983,23 @@ server <- function(input, output){
     if(!is.null(nir$data)){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
       box(width=10,title = "NIR Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-        tabsetPanel(
-          tabPanel(title = "PCA",
-            selectInput("nir_which_day","Which Day",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T))),
-            selectInput("nir_color_by","Color By",des,des[1]),
-            plotOutput("nir_pca"),
-            uiOutput("download_nir_PCA_ui")
-          ),
-          tabPanel(title="Heatmap",
-            selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
-            selectInput("nir_collapse_by", "Collapse By",des,des[1]),
-            plotOutput("nir_heatmap_nofacet"),
-            uiOutput("download_nir_heatmap_nofacet_ui"),
-            br(),
-            plotOutput("nir_heatmap_withfacet"),
-            uiOutput("download_nir_heatmap_facet_ui")
+          tabsetPanel(
+            tabPanel(title = "PCA",
+                     selectInput("nir_which_day","Which Day",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T))),
+                     selectInput("nir_color_by","Color By",des,des[1]),
+                     plotOutput("nir_pca"),
+                     uiOutput("download_nir_PCA_ui")
+            ),
+            tabPanel(title="Heatmap",
+                     selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
+                     selectInput("nir_collapse_by", "Collapse By",des,des[1]),
+                     plotOutput("nir_heatmap_nofacet"),
+                     uiOutput("download_nir_heatmap_nofacet_ui"),
+                     br(),
+                     plotOutput("nir_heatmap_withfacet"),
+                     uiOutput("download_nir_heatmap_facet_ui")
+            )
           )
-        )
       )
     }
   })
@@ -980,18 +1025,18 @@ server <- function(input, output){
   })
   
   nir_heatmap_nofacet <- reactive({
-      test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
-      ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
+    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
+    ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
       ylab(input$nir_collapse_by)+
       geom_tile(aes(fill=intensityAVG))+
       scale_fill_gradient2(midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-          axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-          strip.background=element_rect(fill="gray50"),
-          strip.text.x=element_text(size=14,color="white"),
-          strip.text.y=element_text(size=14,color="white"))
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
   })
   
   output$nir_heatmap_nofacet <- renderPlot({
@@ -1002,11 +1047,11 @@ server <- function(input, output){
       scale_fill_gradient2(midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-        axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-        strip.background=element_rect(fill="gray50"),
-        strip.text.x=element_text(size=14,color="white"),
-        strip.text.y=element_text(size=14,color="white"))
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
   })
   
   output$nir_heatmap_nofacet_download <- downloadHandler(
@@ -1046,11 +1091,11 @@ server <- function(input, output){
       scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-        axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18))+
       theme(plot.title = element_text(hjust = 0.5),
-        strip.background=element_rect(fill="gray50"),
-        strip.text.x=element_text(size=14,color="white"),
-        strip.text.y=element_text(size=14,color="white"))
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
   })
   
   output$nir_heatmap_facet_download <- downloadHandler(
