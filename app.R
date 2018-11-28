@@ -323,7 +323,6 @@ server <- function(input, output){
     
     id <- showNotification(h3("Querying db for data..."), duration = NULL)
     meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
-    <<<<<<< refs/remotes/origin/master
     shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features NATURAL JOIN signal WHERE signal.channel_name = "hue"')
     #shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
     removeNotification(id)
@@ -333,11 +332,9 @@ server <- function(input, output){
     shapes.df <- shapes.df[,(colnames(shapes.df)[!colnames(shapes.df) %in% c("bin-number","channel_name","values")])]
     colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
     colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
-    =======
-      shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
+    shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
     shapes.df <- shapes.df[shapes.df$imgtype == "VIS",]
     shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
-    >>>>>>> Fixed vis and nir boxes
     removeNotification(id)
     
     id <- showNotification(h3("Joining design file..."), duration = NULL)
