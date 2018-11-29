@@ -232,6 +232,7 @@ server <- function(input, output){
   from <- reactiveValues(data=NULL)
   
   observeEvent(input$phenocv_merge,{
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties$data <- NULL; from$data <- NULL;
     from$data <- "phenocv"
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
@@ -309,6 +310,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties$data <- NULL; from$data <- NULL;
     from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
     db <- input$plantcv_sql_path$datapath
@@ -324,7 +326,7 @@ server <- function(input, output){
     id <- showNotification(h3("Querying db for data..."), duration = NULL)
     meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
     shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features NATURAL JOIN signal WHERE signal.channel_name = "hue"')
-    #shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
+#    shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
     removeNotification(id)
     
     id <- showNotification(h3("Extracting color data..."), duration = NULL)
@@ -362,9 +364,8 @@ server <- function(input, output){
     #VIS data organization
     id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
     vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
-    print(head(vis.df))
     if(nrow(vis.df)!= 0){
-      vis.df <- vis.df[,which(!apply(vis.df == 0, 2, all))]
+#      vis.df <- vis.df[,which(!apply(vis.df == 0, 2, all))]
       colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
       vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
       removeNotification(id)
@@ -401,7 +402,7 @@ server <- function(input, output){
     id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
     nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
     if(nrow(nir.df)!= 0){
-      nir.df <- nir.df[,as.numeric(which(colSums(nir.df == "0") == 0))]
+#      nir.df <- nir.df[,as.numeric(which(colSums(nir.df == "0") == 0))]
       colnames(nir.df)[colnames(nir.df) == "plantbarcode"] <- "Barcodes"
       nir.df <- cbind(data.frame("meta"=rep("meta",nrow(nir.df))),data.frame(do.call(rbind,lapply(strsplit(nir.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),nir.df[,which(!(colnames(nir.df)%in%(c("bin_values","values"))))])
       removeNotification(id)
@@ -580,22 +581,24 @@ server <- function(input, output){
   observeEvent(input$make_anova,{
     id <- showNotification(h3("Calculating variances..."), duration = NULL)
     s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     dat <- merged$data[merged$data$DAP==as.numeric(input$which_day),]
     H2 <- c()
     for(e in s){
       fmla <- as.formula(paste0("as.numeric(",e,") ~ (1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")"))
       model <- lmer(fmla,data = dat)
-      re<-as.numeric(VarCorr(model))
+      re<- VarCorr(model)
       res<-attr(VarCorr(model), "sc")^2
-      interaction.var <- re[1]
-      microbe.var<-re[2]
-      drought.var<-re[3]
-      tot.var<-sum(re,res)
-      unexp <- 1-sum(re)/sum(re,res)
       
-      h2 <- c((microbe.var/tot.var),
-              (drought.var/tot.var),
+      interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
+      des1.var <- as.numeric(attr(re[["Drought"]],"stddev"))^2
+      des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
+  
+      tot.var<-sum(as.numeric(re),res)
+      unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+      
+      h2 <- c((des1.var/tot.var),
+              (des2.var/tot.var),
               (interaction.var/tot.var),
               unexp)
       H2 <- rbind(H2,h2)
@@ -606,7 +609,7 @@ server <- function(input, output){
     colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Shape")
     H2$Shape <-  ordered(H2$Shape,levels=H2$Shape[order(H2$Unexplained)])
     H2_melt <- melt(H2,id=c("Shape"))
-    H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[2],des[1],"Interaction"))
+    H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
     anova_dat$data <- H2_melt
     removeNotification(id)
   })
