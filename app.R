@@ -591,7 +591,7 @@ server <- function(input, output){
       res<-attr(VarCorr(model), "sc")^2
       
       interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
-      des1.var <- as.numeric(attr(re[["Drought"]],"stddev"))^2
+      des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
       des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
   
       tot.var<-sum(as.numeric(re),res)
