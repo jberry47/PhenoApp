@@ -67,21 +67,6 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                       at data from this facility and does not perform any statistical inferences. If an effect is observed, it is
                                       required that proper statistical is testing is done outside of this framework.")
                                     ),
-                                box(width=10,title = "Contributing and error reporting",solidHeader = T,status = 'success',collapsible = TRUE,collapsed=T,
-                                    p("If you'd like to contribute to this app, you can! This application is on Github at",tags$a(href="https://github.com/jberry47/Shiny-PhenoAnalyzer","github.com/jberry47/Shiny-PhenoAnalyzer",target="_blank"),
-                                      "and you just have to follow a few simple steps:"),
-                                  tags$ol(
-                                    tags$li("Fork the repository to your personal repository"),
-                                    tags$li("Cloned the forked repository to your local machine"),
-                                    tags$li("Create a local branch to do your work"),
-                                    tags$li("Make the edits/additions/deletions you'd like to make"),
-                                    tags$li("Push all the changes to your fork"),
-                                    tags$li("Create a pull request from your fork to the master branch of this app")
-                                  ),
-                                  p("After the pull request is made, admins of the page will review it and accept it if there aren't conflicts."),
-                                  p("If you're using the app and something breaks or it doesn't work as expected, then please make a 'New Issue' in the github
-                                    repository and we'll look into it as soon as we can.")
-                                ),
                                 box(width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
                                     p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. This file is the link that takes the barcode of a plant and assigns the
                                       the design parameters. So at most there should be 1141 rows in this file. See last paragraph in this box for exceptions. There are a couple of rules that 
@@ -96,7 +81,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                               coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that, consider doing
                                               all analyses outside of this framework.")
                                       ),
-                                    p("The first row of the design file should be: Barcodes, Var1, Var2. Where Var1 and Var2 could be called anything. The first 10 rows of two example design files are
+                                    p("The first row of the design file should be: Barcodes, Var1, Var2, ..., VarM. Where Var1, Var2, ..., VarM could be called anything. The first 10 rows of two example design files are
                                       shown here. "),
                                     column(6,
                                            tableOutput("design_ex1")),
@@ -137,8 +122,23 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                     p("PlantCV allows for co-processing the NIR images along side of the VIS images and that is done with the",code("-C"),"flag. This import
                                       method is designed to handle with and without the NIR data."),
                                     div(id="container",p("For more information about PlantCV, click "),tags$a(href="https://plantcv.readthedocs.io/en/latest/","here",target="_blank"))
-                                    )
+                                  ),
+                                  box(width=10,title = "Contributing and error reporting",solidHeader = T,status = 'success',collapsible = TRUE,collapsed=F,
+                                    p("If you'd like to contribute to this app, you can! This application is on Github at",tags$a(href="https://github.com/jberry47/Shiny-PhenoAnalyzer","github.com/jberry47/Shiny-PhenoAnalyzer",target="_blank"),
+                                      "and you just have to follow a few simple steps:"),
+                                    tags$ol(
+                                      tags$li("Fork the repository to your personal repository"),
+                                      tags$li("Cloned the forked repository to your local machine"),
+                                      tags$li("Create a local branch to do your work"),
+                                      tags$li("Make the edits/additions/deletions you'd like to make"),
+                                      tags$li("Push all the changes to your fork"),
+                                      tags$li("Create a pull request from your fork to the master branch of this app")
                                     ),
+                                    p("After the pull request is made, admins of the page will review it and accept it if there aren't conflicts."),
+                                    p("If you're using the app and something breaks or it doesn't work as expected, then please make a 'New Issue' in the github
+                                      repository and we'll look into it as soon as we can.")
+                                  )
+                        ),
                         tabItem(tabName = "get_started",
                                 box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
                                     h5("How many days before the first day of imaging were the plants planted?"),
