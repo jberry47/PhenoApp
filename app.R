@@ -573,7 +573,7 @@ server <- function(input, output){
     }
   })
   
-  
+
   #***********************************************************************************************
   # ANOVA box
   #***********************************************************************************************
@@ -582,43 +582,71 @@ server <- function(input, output){
     id <- showNotification(h3("Calculating variances..."), duration = NULL)
     s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    
+    ext <- FALSE
+    if(length(des)==2){
+      ind_fmla <- paste0("(1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")")
+    }else{
+      ind_fmla <- paste(paste0("(1|",des,")"),collapse = "+")
+      ext <- TRUE
+    }
+    
     dat <- merged$data[merged$data$DAP==as.numeric(input$which_day),]
     H2 <- c()
     for(e in s){
-      fmla <- as.formula(paste0("as.numeric(",e,") ~ (1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")"))
+      fmla <- as.formula(paste0("as.numeric(",e,") ~ ",ind_fmla))
       model <- lmer(fmla,data = dat)
       re<- VarCorr(model)
       res<-attr(VarCorr(model), "sc")^2
       
-      interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
-      des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
-      des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
-  
-      tot.var<-sum(as.numeric(re),res)
-      unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
-      
-      h2 <- c((des1.var/tot.var),
-              (des2.var/tot.var),
-              (interaction.var/tot.var),
-              unexp)
-      H2 <- rbind(H2,h2)
+      if(!ext){
+        interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
+        des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
+        des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
+        
+        tot.var<-sum(as.numeric(re),res)
+        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+        
+        h2 <- c((des1.var/tot.var),
+          (des2.var/tot.var),
+          (interaction.var/tot.var),
+          unexp)
+        H2 <- rbind(H2,h2) 
+      }else{
+        var <- lapply(des,function(i){as.numeric(attr(re[[i]],"stddev"))^2})
+
+        tot.var <- sum(as.numeric(re),res)
+        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+        
+        h2 <- c(unlist(var)/tot.var,unexp)
+        H2 <- rbind(H2,h2)
+      }
     }
     H2 <- data.frame(H2,row.names = s)
     H2$Shape <- rownames(H2)
     rownames(H2) <- NULL
-    colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Shape")
+    if(!ext){
+      colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Shape")
+    }else{
+      colnames(H2) <- c(des,"Unexplained","Shape")
+    }
     H2$Shape <-  ordered(H2$Shape,levels=H2$Shape[order(H2$Unexplained)])
     H2_melt <- melt(H2,id=c("Shape"))
-    H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
+    
+    if(!ext){
+      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
+    }else{
+      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des))
+    }
     anova_dat$data <- H2_melt
     removeNotification(id)
   })
   
   shapes_anova <- reactive({
     if(!is.null(anova_dat$data)){
-      ggplot(data=anova_dat$data,aes(Shape,value*100))+
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      p <- ggplot(data=anova_dat$data,aes(Shape,value*100))+
         geom_bar(stat = "identity",aes(fill=variable))+
-        scale_fill_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))+
         ylab("Variance Explained (%)")+
         theme_bw()+
         theme(strip.background=element_rect(fill="gray50"),
@@ -632,29 +660,21 @@ server <- function(input, output){
         theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
         theme(legend.position = "top")+
         guides(fill = guide_legend(title = ""))+
-        theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      if(length(des) == 2){
+        p <- p+scale_fill_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))
+      }else{
+        hues <- seq(15, 375, length = length(des) + 1)
+        cols <- hcl(h = hues, l = 65, c = 100)[1:length(des)]
+        p <- p+scale_fill_manual(values = c("gray60",cols))
+      }
+      p
     }
   })
   
   output$anova_plot <- renderPlot({
     if(!is.null(anova_dat$data)){
-      ggplot(data=anova_dat$data,aes(Shape,value*100))+
-        geom_bar(stat = "identity",aes(fill=variable))+
-        scale_fill_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))+
-        ylab("Variance Explained (%)")+
-        theme_bw()+
-        theme(strip.background=element_rect(fill="gray50"),
-              strip.text.x=element_text(size=14,color="white"),
-              strip.text.y=element_text(size=14,color="white"))+
-        theme(axis.text = element_text(size = 14),
-              axis.title.y= element_text(size = 18),
-              axis.title.x = element_blank())+
-        theme(axis.ticks.length=unit(0.2,"cm"),
-              plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
-        theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
-        theme(legend.position = "top")+
-        guides(fill = guide_legend(title = ""))+
-        theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+      shapes_anova()
     }
   })
   
