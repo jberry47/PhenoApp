@@ -445,6 +445,7 @@ server <- function(input, output){
       box(width=10,title = "Outlier Detection and Removal",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           p("This step is not required"),
           actionButton("detect_outliers","Detect Outliers"),
+          textOutput("outliers_model"),
           textOutput("num_outliers"),
           plotOutput("cooksd_plot"),
           uiOutput("remove_outliers_ui"),
@@ -455,10 +456,13 @@ server <- function(input, output){
   })
   
   cooksd <- reactiveValues(data=NULL)
+  outlier_fmla <- reactiveValues(data=NULL)
   observeEvent(input$detect_outliers,{
     id <- showNotification(h3("Calculating Cook's Distance..."), duration = NULL)
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    fmla <- as.formula(paste("as.numeric(area) ~",paste(c(des,"as.factor(DAP)"),collapse = ":")))
+    outlier_fmla$data <- paste("as.numeric(area) ~",paste(c(des,"as.factor(DAP)"),collapse = ":"))
+    fmla <- as.formula(outlier_fmla$data)
+    print(outlier_fmla$data)
     cooksd$data <- cooks.distance(glm(data=merged$data,fmla))
     removeNotification(id)
   })
@@ -467,6 +471,12 @@ server <- function(input, output){
     if(!is.null(cooksd$data)){
       n <- sum(cooksd$data >= 3*mean(cooksd$data),na.rm = T)
       paste("Outliers detected:",n,"(Approximately",round(100*(n/length(cooksd$data))),"% of dataset)")
+    }else{""}
+  })
+  
+  output$outliers_model <- renderText({
+    if(!is.null(outlier_fmla$data)){
+      paste0("Model: cooks.distance(glm(",outlier_fmla$data,"))")
     }else{""}
   })
   
