@@ -77,9 +77,9 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                       tags$li("The other columns in this file shouldn't have any entries that have a ",code("."),"in them. For example sorghum has a genotype 
                                               commonly called B.Az9504 and if this is how it's labeled in this file, things will turn out funny. Please edit entries such 
                                               as this."),
-                                      tags$li("While this tool is setup to handle more than two design columns, many of the analyses are
-                                              coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that, consider doing
-                                              all analyses outside of this framework.")
+                                      tags$li("While this tool is setup to handle more than two design columns, many of the plots are
+                                              coded to only accept two columns (such as Genotype and Treatment). If your design is more complicated than that (like the second example design file)
+                                              , text will appear indicating that it's averaging over specific design parameters.")
                                       ),
                                     p("The first row of the design file should be: Barcodes, Var1, Var2, ..., VarM. Where Var1, Var2, ..., VarM could be called anything. The first 10 rows of two example design files are
                                       shown here. "),
@@ -574,6 +574,7 @@ server <- function(input, output){
                      selectInput("dep_var","Y-axis",s,"area"),
                      selectInput("color_by","Color By",des,des[1]),
                      selectInput("facet_by","Facet By",des,des[2]),
+                     textOutput("trends_collapsed_over"),
                      plotOutput("trends_plot"),
                      uiOutput("download_shapes_trends_ui")
             ),
@@ -581,6 +582,7 @@ server <- function(input, output){
                      selectInput("h_color_by","Color By",s,"area"),
                      selectInput("h_group_by","Group By",des,des[1]),
                      selectInput("h_facet_by","Facet By",des,des[2]),
+                     textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
                      uiOutput("download_shapes_heatmap_ui")
             ),
@@ -589,11 +591,36 @@ server <- function(input, output){
                      selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
                      selectInput("box_group_by","Group By",des,des[1]),
                      selectInput("box_facet_by","Facet By",des,des[2]),
+                     textOutput("box_collapsed_over"),
                      plotOutput("boxplot_shapes"),
                      uiOutput("download_shapes_boxplot_ui")
             )
           )
       ) 
+    }
+  })
+  
+  output$trends_collapsed_over <- renderText({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    left <- des[!(des %in% c(input$color_by,input$facet_by))]
+    if(!length(left) == 0){
+      paste0("Trend lines are collapsed over: ",paste(left,collapse=" ")) 
+    }
+  })
+  
+  output$box_collapsed_over <- renderText({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    left <- des[!(des %in% c(input$box_group_by,input$box_facet_by))]
+    if(!length(left) == 0){
+      paste0("Boxes are collapsed over: ",paste(left,collapse=" ")) 
+    }
+  })
+  
+  output$h_collapsed_over <- renderText({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    left <- des[!(des %in% c(input$h_group_by,input$h_facet_by))]
+    if(!length(left) == 0){
+      paste0("Heatmap values are collapsed over: ",paste(left,collapse=" ")) 
     }
   })
   
