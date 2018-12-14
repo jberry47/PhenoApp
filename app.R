@@ -266,6 +266,9 @@ server <- function(input, output){
     }else if(ncol(sv_shapes)==21){
       colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof","fd")
       shapes$data <- sv_shapes
+    }else if(ncol(sv_shapes)==19){
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar")
+      shapes$data <- sv_shapes
     }else{
       colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof")
       shapes$data <- sv_shapes
