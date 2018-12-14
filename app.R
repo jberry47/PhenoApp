@@ -67,6 +67,21 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                       at data from this facility and does not perform any statistical inferences. If an effect is observed, it is
                                       required that proper statistical is testing is done outside of this framework.")
                                     ),
+                                box(width=10,title = "Contributing and error reporting",solidHeader = T,status = 'success',collapsible = TRUE,collapsed=T,
+                                    p("If you'd like to contribute to this app, you can! This application is on Github at",tags$a(href="https://github.com/jberry47/Shiny-PhenoAnalyzer","github.com/jberry47/Shiny-PhenoAnalyzer",target="_blank"),
+                                      "and you just have to follow a few simple steps:"),
+                                  tags$ol(
+                                    tags$li("Fork the repository to your personal repository"),
+                                    tags$li("Cloned the forked repository to your local machine"),
+                                    tags$li("Create a local branch to do your work"),
+                                    tags$li("Make the edits/additions/deletions you'd like to make"),
+                                    tags$li("Push all the changes to your fork"),
+                                    tags$li("Create a pull request from your fork to the master branch of this app")
+                                  ),
+                                  p("After the pull request is made, admins of the page will review it and accept it if there aren't conflicts."),
+                                  p("If you're using the app and something breaks or it doesn't work as expected, then please make a 'New Issue' in the github
+                                    repository and we'll look into it as soon as we can.")
+                                ),
                                 box(width=10,title = "Design File",solidHeader = T,status = 'success',collapsible = TRUE,
                                     p("In both cases, importing PhenotyperCV or PlantCV output, a common design file is needed. This file is the link that takes the barcode of a plant and assigns the
                                       the design parameters. So at most there should be 1141 rows in this file. See last paragraph in this box for exceptions. There are a couple of rules that 
@@ -462,7 +477,6 @@ server <- function(input, output){
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     outlier_fmla$data <- paste("as.numeric(area) ~",paste(c(des,"as.factor(DAP)"),collapse = ":"))
     fmla <- as.formula(outlier_fmla$data)
-    print(outlier_fmla$data)
     cooksd$data <- cooks.distance(glm(data=merged$data,fmla))
     removeNotification(id)
   })
