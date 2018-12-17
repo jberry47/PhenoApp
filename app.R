@@ -254,10 +254,11 @@ server <- function(input, output){
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
     img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
-    snapshot$data <- img_to_barcode
     assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
-    img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
+    assoc_empty <- assoc[-which(assoc$Microbes %in% c("Blank","Empty","blank","empty")),]
     colnames(img_to_barcode)[3] <- "Barcodes"
+    snapshot$data <- join(img_to_barcode, assoc_empty, by = "Barcodes")
+    img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
     img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
     removeNotification(id)
     
@@ -265,17 +266,11 @@ server <- function(input, output){
     sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
     sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
     
-    if(ncol(sv_shapes)==22){
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof","det")
-      shapes$data <- sv_shapes
-    }else if(ncol(sv_shapes)==21){
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof","fd")
-      shapes$data <- sv_shapes
-    }else if(ncol(sv_shapes)==19){
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar")
+    if(ncol(sv_shapes)==21){
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof")
       shapes$data <- sv_shapes
     }else{
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","oof")
+      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof", "det")
       shapes$data <- sv_shapes
     }
     
@@ -1196,7 +1191,8 @@ server <- function(input, output){
   #***********************************************************************************************
   output$summary_ui <- renderUI({
     if(!is.null(merged$data)){
-      print(head(snapshot$data))
+      snapshot$data <-snapshot$data[-snapshot$data$weight.before < 0,]
+      snapshot$data <- snapshot$data[rowSums(sapply(colnames(design$data),function(i) !is.na(snapshot$data[,i])))==ncol(design$data),]
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       box(width=10,title = "Summary",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           br(),
@@ -1226,6 +1222,7 @@ server <- function(input, output){
             ),
             tabPanel(title = "Water",
                    selectInput("water_facet_by", "Facet By:", des, des[1], width = 180),
+                   selectInput("water_color_by", "Color By:", des, des[2], width = 180),
                    plotOutput("water_plot")
             ),
             tabPanel(title = "OOF",
@@ -1285,8 +1282,8 @@ server <- function(input, output){
   
   water <- reactive({
     ggplot(snapshot$data, aes(x = timestamp, y = weight.before))+
-      geom_point()+
-      #facet_grid(~eval(parse(text=input$water_facet_by)))+
+      geom_point(aes_string(color = input$water_color_by))+
+      facet_grid(input$water_facet_by)+
       theme_light()+
       theme(axis.text = element_text(size = 12),
             axis.title= element_text(size = 18))+
