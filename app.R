@@ -255,9 +255,15 @@ server <- function(input, output){
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
     img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
     assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
-    assoc_empty <- assoc[-which(assoc$Microbes %in% c("Blank","Empty","blank","empty")),]
+#    assoc_empty <- assoc[rowSums(sapply(colnames(assoc)[-1],function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+#    assoc_empty <- assoc[-which(assoc$Microbes %in% c("Blank","Empty","blank","empty")),]
     colnames(img_to_barcode)[3] <- "Barcodes"
-    snapshot$data <- join(img_to_barcode, assoc_empty, by = "Barcodes")
+    snapshot1 <- join(img_to_barcode, assoc, by = "Barcodes")
+    snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
+#    snapshot$data <- snapshot1[rowSums(sapply(colnames(design$data),function(i) !is.na(snapshot1[,i])))==ncol(design$data),]
+    print("before")
+    print(head(snapshot$data))
+#    snapshot$data <- join(img_to_barcode, assoc_empty, by = "Barcodes")
     img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
     img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
     removeNotification(id)
@@ -1190,9 +1196,7 @@ server <- function(input, output){
   # "Summary" Box
   #***********************************************************************************************
   output$summary_ui <- renderUI({
-    if(!is.null(merged$data)){
-      snapshot$data <-snapshot$data[-snapshot$data$weight.before < 0,]
-      snapshot$data <- snapshot$data[rowSums(sapply(colnames(design$data),function(i) !is.na(snapshot$data[,i])))==ncol(design$data),]
+    if(!is.null(snapshot$data)){
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       box(width=10,title = "Summary",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           br(),
@@ -1283,7 +1287,7 @@ server <- function(input, output){
   water <- reactive({
     ggplot(snapshot$data, aes(x = timestamp, y = weight.before))+
       geom_point(aes_string(color = input$water_color_by))+
-      facet_grid(input$water_facet_by)+
+      facet_grid(~eval(parse(text=input$water_facet_by)))+
       theme_light()+
       theme(axis.text = element_text(size = 12),
             axis.title= element_text(size = 18))+
