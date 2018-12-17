@@ -173,6 +173,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                       )
                                     )
                                 ),
+                                uiOutput("summary_ui"),
                                 uiOutput("outlier_removal"),
                                 uiOutput("shapes_ui"),
                                 uiOutput("vis_ui"),
@@ -243,14 +244,18 @@ server <- function(input, output){
   shapes <- reactiveValues(data=NULL)
   vis <- reactiveValues(data=NULL)
   nir <- reactiveValues(data=NULL)
-  empties <- reactiveValues(data=NULL)
+  empties1 <- reactiveValues(data=NULL)
   from <- reactiveValues(data=NULL)
+  snapshot <- reactiveValues(data=NULL)
   
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties$data <- NULL; from$data <- NULL;
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL;
     from$data <- "phenocv"
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+    img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
+    snapshot$data <- img_to_barcode
+    assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
     img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
     colnames(img_to_barcode)[3] <- "Barcodes"
     img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
@@ -302,6 +307,7 @@ server <- function(input, output){
     id <- showNotification(h3("Removing empty pots..."), duration = NULL)
     sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+    empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
     removeNotification(id)
     
@@ -328,7 +334,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties$data <- NULL; from$data <- NULL;
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL;
     from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
     db <- input$plantcv_sql_path$datapath
@@ -450,6 +456,7 @@ server <- function(input, output){
     
     merged$data <- sv_shapes
     shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
+    empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
     
     id <- showNotification(h3("Done!"), duration = 1)
     dbDisconnect(conn)
@@ -1182,6 +1189,115 @@ server <- function(input, output){
     if(!is.null(nir$data)){
       downloadButton("nir_heatmap_facet_download","Download Plot")
     }
+  })
+  
+  #***********************************************************************************************
+  # "Summary" Box
+  #***********************************************************************************************
+  output$summary_ui <- renderUI({
+    if(!is.null(merged$data)){
+      print(head(snapshot$data))
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      box(width=10,title = "Summary",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
+          br(),
+          textOutput("num_empties"),
+          br(),
+          textOutput("num_oof"),
+          tabsetPanel(
+            tabPanel(title = "Empties",
+                    tableOutput("empties_table")
+            ),
+            tabPanel(title = "Image Quality",
+                     br(),
+                     column(6, 
+                            numericInput("iqv_ylim_up", "Upper y-axis limit:", value = 10, width = 180)
+                     ),
+                     column(6, 
+                            numericInput("iqv_ylim_low", "Lower y-axis limit:", value = -100, width= 180)
+                     ),
+                     br(),
+                     plotOutput("iqv_plot", width = 400),
+                     textOutput("no_det"),
+                     br(),
+                     br(),
+                     br(),
+                     downloadButton("iqv_download","Download Plot"),
+                     br()
+            ),
+            tabPanel(title = "Water",
+                   selectInput("water_facet_by", "Facet By:", des, des[1], width = 180),
+                   plotOutput("water_plot")
+            ),
+            tabPanel(title = "OOF",
+                   plotOutput("oof_plot")
+            )
+          )
+      )
+    }
+  })
+  
+  output$num_empties <- renderText({
+    if(!is.null(shapes$data)){
+      paste0("Number of empty/blank pots: ", length(unique(empties1$data$Barcodes)))
+    }
+  })
+  
+  output$empties_table <- renderTable({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    fmla <- as.formula(paste("Barcodes~",paste(des,collapse = "+")))
+#    df <- aggregate(data=merged$data,fmla,FUN = "mean")
+    aggregate(data = design$data[which(design$data$Barcodes %in% empties1$data$Barcodes),], fmla, FUN = function(i) length(unique(i)))
+  })
+  
+  iqv <- reactive({
+    ggplot(merged$data, aes(x = hour, y = det))+
+      geom_jitter()+
+      scale_x_continuous(breaks = seq(0, 24, 2), limits = c(0, 24))+
+      ylim(input$iqv_ylim_low, input$iqv_ylim_up)+
+      ylab("Deviance (D)")+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+  })
+  
+  output$iqv_plot <- renderPlot({
+    if(!is.null(merged$data$det)){
+      iqv()
+    }
+  })
+  
+  output$iqv_download <- downloadHandler(
+    filename = function() {"iqv_plot.png"},
+    content = function(file){
+      ggsave(file,iqv(),device = "png",width = 5,height = 4,dpi = 300)
+    }
+  )
+  
+  output$no_det <- renderText({
+    if(is.null(merged$data$det)){
+    paste("Image quality data was not found.")
+    }
+  })
+  
+  water <- reactive({
+    ggplot(snapshot$data, aes(x = timestamp, y = weight.before))+
+      geom_point()+
+      #facet_grid(~eval(parse(text=input$water_facet_by)))+
+      theme_light()+
+      theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+      theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+  })
+  
+  output$water_plot <- renderPlot({
+    water()
   })
   
 }
