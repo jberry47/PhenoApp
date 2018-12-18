@@ -16,6 +16,7 @@ library(FactoMineR)
 library(factoextra)
 library(ggridges)
 library(car)
+library(survival)
 
 
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
@@ -1150,7 +1151,7 @@ server <- function(input, output){
                    plotOutput("water_plot")
             ),
             tabPanel(title = "OOF",
-                   plotOutput("oof_plot")
+                   plotOutput("oof_plot", height = 650)
             )
           )
       )
@@ -1220,6 +1221,39 @@ server <- function(input, output){
   output$water_plot <- renderPlot({
     water()
   })
+  
+  #*************************************************************************************************
+  # OOF Survival
+  #*************************************************************************************************
+  
+  output$oof_plot <- renderPlot({
+    print(head(merged$data))
+    print(head(snapshot$data))
+    dat <- merged$data
+    dat$srv <- with(dat,Surv(time=DAP,event=oof))
+    mod1 <- summary(survfit(srv ~ Drought+Genotype+Microbes, data = dat, conf.type = "log-log"),time=min(dat$DAP):max(dat$DAP))
+    mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
+    mod_df$Genotype <- unlist(lapply(strsplit(mod_df$strata,","),function(i) strsplit(trimws(i[2]),"Genotype=")[[1]][2]))
+    mod_df$Drought <- unlist(lapply(strsplit(mod_df$strata,","),function(i) strsplit(trimws(i[1]),"Drought=")[[1]][2]))
+    mod_df$Microbes <- unlist(lapply(strsplit(mod_df$strata,","),function(i) strsplit(trimws(i[3]),"Microbes=")[[1]][2]))
+    head(mod_df)
+    
+    p <- ggplot(mod_df,aes(DAP,surv))+
+      facet_grid(Microbes~Drought)+
+      #geom_ribbon(aes(ymin=low,ymax=high),fill="gray60")+
+      geom_line(aes(color=Genotype))+
+      ylab("Out Of Frame Risk")+
+      scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
+      theme_light()+
+      theme(axis.text = element_text(size = 14),
+            axis.title= element_text(size = 18))+ 
+      theme(strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=14,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+    p
+  })
+  
+  #ggsave("pheno4_ww_oof_risk.png",width=9.95,height=3.9,plot = p, dpi = 300)
   
 }
 
