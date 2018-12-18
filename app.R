@@ -769,16 +769,7 @@ server <- function(input, output){
   })
   
   output$trends_plot <- renderPlot({
-    ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
-      facet_grid(~eval(parse(text=input$facet_by)))+
-      geom_smooth(aes_string(color=input$color_by))+
-      ylab(input$dep_var)+
-      theme_light()+
-      theme(axis.text = element_text(size = 14),
-            axis.title= element_text(size = 18))+
-      theme(strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+    shapes_trends()
   })
   
   output$shapes_trends_download <- downloadHandler(
@@ -815,20 +806,7 @@ server <- function(input, output){
   })
   
   output$trends_heatmap <- renderPlot({
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
-    df <- aggregate(data=merged$data,fmla,FUN = "mean")
-    colnames(df)[ncol(df)] <- input$h_color_by
-    ggplot(df,aes_string("DAP",input$h_group_by))+
-      facet_grid(~eval(parse(text=input$h_facet_by)))+
-      geom_tile(aes_string(fill=input$h_color_by))+
-      ylab(input$h_group_by)+
-      theme_light()+
-      theme(axis.text = element_text(size = 14),
-            axis.title= element_text(size = 18))+
-      theme(strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+    shapes_heatmap()
   })
   
   output$shapes_heatmap_download <- downloadHandler(
@@ -849,7 +827,8 @@ server <- function(input, output){
   shapes_boxplot <- reactive({
     ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_group_by,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
       facet_grid(~eval(parse(text=input$box_facet_by)))+
-      geom_boxplot()+
+      geom_violin(fill="gray50",alpha=.2)+
+      geom_boxplot(width=.25)+
       ylab(input$box_dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 12),
@@ -862,18 +841,7 @@ server <- function(input, output){
   })
   
   output$boxplot_shapes <- renderPlot({
-    ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_group_by,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
-      facet_grid(~eval(parse(text=input$box_facet_by)))+
-      geom_boxplot()+
-      ylab(input$box_dep_var)+
-      theme_light()+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))+
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    shapes_boxplot()
   })
   
   output$shapes_boxplot_download <- downloadHandler(
@@ -1017,31 +985,7 @@ server <- function(input, output){
   })
   
   output$vis_joyplot <- renderPlot({
-    sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
-    test_avg <- hist_avg(sub,start = 2,stop = 181)
-    test_sd <- hist_sd(sub,start = 2,stop = 181)
-    test_avg <- data.frame(melt(t(test_avg)))
-    test_avg$sd <- data.frame(melt(t(test_sd)))[,3]
-    test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
-    test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
-    test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
-    
-    ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
-      facet_grid(~meta2)+
-      geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
-      scale_x_continuous(breaks = c(0,90,180,270,360))+
-      ylab("")+
-      xlab("Hue Channel")+
-      theme_ridges(grid=T,center_axis_labels = T)+
-      theme(legend.position='none')+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))+
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
-    
+    vis_joyplot()
   })
   
   output$vis_joyplot_download <- downloadHandler(
@@ -1121,18 +1065,7 @@ server <- function(input, output){
   })
   
   output$nir_heatmap_nofacet <- renderPlot({
-    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",input$nir_collapse_by,"+DAP",collapse="")),FUN = function(i)mean(i,na.rm=T))
-    ggplot(test,aes_string("DAP",paste("as.factor(",input$nir_collapse_by,")",collapse = "")))+
-      ylab(input$nir_collapse_by)+
-      geom_tile(aes(fill=intensityAVG))+
-      scale_fill_gradient2(midpoint = mean(test$intensityAVG),high ="gray10",low= "#56B1F7",mid = "#d7e4ef")+
-      theme_light()+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+    nir_heatmap_nofacet()
   })
   
   output$nir_heatmap_nofacet_download <- downloadHandler(
@@ -1164,19 +1097,7 @@ server <- function(input, output){
   })
   
   output$nir_heatmap_withfacet <- renderPlot({
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",des[1],"+",des[2],"+DAP")),FUN = function(i)mean(i,na.rm=T))
-    ggplot(test,aes_string("DAP",des[1]))+
-      facet_grid(~eval(parse(text=des[2])))+
-      geom_tile(aes(fill=intensityAVG))+
-      scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
-      theme_light()+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+    nir_heatmap_facet()
   })
   
   output$nir_heatmap_facet_download <- downloadHandler(
