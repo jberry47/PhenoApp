@@ -102,8 +102,8 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                     p("created nir_color.txt")
                                     ),
                                 box(width=5,title = "Importing from PlantCV",solidHeader = T,status = 'success',collapsible = TRUE,
-                                    p("When processing images using this program, there are 2 files that are required: design, and sqlite3. The design file is shown 
-                                      above and the sqlite3 file is created when running PlantCV with the",code("-s"), "flag. An example bash script to run image
+                                    p("When processing images using this program, there are 3 files that are required: design, snapshot, and sqlite3. The design file is shown 
+                                      above,the snapshot file is the one that came with the image download (SnapshotInfo.csv), and the sqlite3 file is created when running PlantCV with the",code("-s"), "flag. An example bash script to run image
                                       analysis using this program and getting a sqlite3 file out is shown here:"),
                                     code("#!/bin/bash",br(),"
                                          /home/jberry/plantcv/plantcv-pipeline.py \\",br(),"
@@ -164,6 +164,9 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                       ),
                                       tabPanel(title = "PlantCV",
                                                fileInput("plantcv_design_file", "Choose design file",
+                                                         multiple = F,
+                                                         accept = c(".csv")),
+                                               fileInput("plantcv_snapshot_file", "Choose snapshot file",
                                                          multiple = F,
                                                          accept = c(".csv")),
                                                fileInput("plantcv_sql_path", "Choose sqlite3 database",
@@ -230,8 +233,8 @@ server <- function(input, output){
   })
   
   output$plantcv_go_ui <- renderUI({
-    b <- c(input$plantcv_sql_path$name,input$plantcv_design_file$name)
-    if(length(b) == 2){
+    b <- c(input$plantcv_sql_path$name,input$plantcv_design_file$name,input$plantcv_snapshot_file$name)
+    if(length(b) == 3){
       actionButton("plantcv_merge","Merge Data")
     }
   })
@@ -249,21 +252,16 @@ server <- function(input, output){
   snapshot <- reactiveValues(data=NULL)
   
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL;
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL
     from$data <- "phenocv"
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
     img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
     assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
-#    assoc_empty <- assoc[rowSums(sapply(colnames(assoc)[-1],function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-#    assoc_empty <- assoc[-which(assoc$Microbes %in% c("Blank","Empty","blank","empty")),]
+    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     colnames(img_to_barcode)[3] <- "Barcodes"
-    snapshot1 <- join(img_to_barcode, assoc, by = "Barcodes")
+    snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
     snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
-#    snapshot$data <- snapshot1[rowSums(sapply(colnames(design$data),function(i) !is.na(snapshot1[,i])))==ncol(design$data),]
-    print("before")
-    print(head(snapshot$data))
-#    snapshot$data <- join(img_to_barcode, assoc_empty, by = "Barcodes")
     img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
     img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
     removeNotification(id)
@@ -335,7 +333,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL;
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL
     from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
     db <- input$plantcv_sql_path$datapath
@@ -348,18 +346,19 @@ server <- function(input, output){
     design$data <- assoc
     removeNotification(id)
     
-    id <- showNotification(h3("Querying db for data..."), duration = NULL)
-    meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
-    shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features NATURAL JOIN signal WHERE signal.channel_name = "hue"')
-#    shapes.df <- shapes.df[,as.numeric(which(colSums(shapes.df == "0") == 0))]
+    id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
+    img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+    img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
+    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+    colnames(img_to_barcode)[3] <- "Barcodes"
+    snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
+    snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
     removeNotification(id)
     
-    id <- showNotification(h3("Extracting color data..."), duration = NULL)
-    vis.df <- cbind(data.frame("meta"=rep("meta",nrow(shapes.df))),data.frame(do.call(rbind,lapply(strsplit(shapes.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),shapes.df[,which((colnames(shapes.df)%in%meta))])
-    shapes.df <- shapes.df[,(colnames(shapes.df)[!colnames(shapes.df) %in% c("bin-number","channel_name","values")])]
-    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
-    colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
+    id <- showNotification(h3("Querying db for shapes data..."), duration = NULL)
+    meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
     shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
+    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
     shapes.df <- shapes.df[shapes.df$imgtype == "VIS",]
     shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
     removeNotification(id)
@@ -1246,7 +1245,6 @@ server <- function(input, output){
   output$empties_table <- renderTable({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     fmla <- as.formula(paste("Barcodes~",paste(des,collapse = "+")))
-#    df <- aggregate(data=merged$data,fmla,FUN = "mean")
     aggregate(data = design$data[which(design$data$Barcodes %in% empties1$data$Barcodes),], fmla, FUN = function(i) length(unique(i)))
   })
   
@@ -1286,7 +1284,7 @@ server <- function(input, output){
   
   water <- reactive({
     ggplot(snapshot$data, aes(x = timestamp, y = weight.before))+
-      geom_point(aes_string(color = input$water_color_by))+
+      geom_point(aes_string(color = paste0("as.factor(",input$water_color_by,")")))+
       facet_grid(~eval(parse(text=input$water_facet_by)))+
       theme_light()+
       theme(axis.text = element_text(size = 12),
@@ -1294,7 +1292,8 @@ server <- function(input, output){
       theme(plot.title = element_text(hjust = 0.5),
             strip.background=element_rect(fill="gray50"),
             strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+            strip.text.y=element_text(size=14,color="white"))+
+      guides(color = guide_legend(title = input$water_color_by))
   })
   
   output$water_plot <- renderPlot({
