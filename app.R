@@ -1234,14 +1234,24 @@ server <- function(input, output){
     }
   }) 
   output$oof_plot <- renderPlot({
-    dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$oof == 1)){
-      sub <- i[i$oof == 1,]
-      sub[order(sub$DAP),][1,]
-    }else{
-      i[i$DAP == max(i$DAP),][1,]
-    }))
-    dat$srv <- with(dat,Surv(time=DAP,event=oof))
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    if(from$data == "phenocv"){
+      dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$oof == 1)){
+        sub <- i[i$oof == 1,]
+        sub[order(sub$DAP),][1,]
+      }else{
+        i[i$DAP == max(i$DAP),][1,]
+      }))
+      dat$srv <- with(dat,Surv(time=DAP,event=oof))
+    }else{
+      dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$in_bounds=="False")){
+        sub <- i[i$in_bounds=="False",]
+        sub[order(sub$DAP),][1,]
+      }else{
+        i[i$DAP == max(i$DAP),][1,]
+      }))
+      dat$srv <- with(dat,Surv(time=DAP,event=(in_bounds=="False")))
+    }
     fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
     mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):max(merged$data$DAP))
     mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
