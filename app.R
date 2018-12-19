@@ -1151,6 +1151,7 @@ server <- function(input, output){
                    plotOutput("water_plot")
             ),
             tabPanel(title = "OOF",
+                   textOutput("oof_warn"),
                    plotOutput("oof_plot", height = 650)
             )
           )
@@ -1222,27 +1223,44 @@ server <- function(input, output){
     water()
   })
   
+
   #*************************************************************************************************
   # OOF Survival
   #*************************************************************************************************
-  
+  output$oof_warn <- renderText({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    if(length(des)>3){
+      "Design is too complex to show in one plot. Please subset your design file."
+    }
+  }) 
   output$oof_plot <- renderPlot({
-    print(head(merged$data))
-    print(head(snapshot$data))
-    dat <- merged$data
+    dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$oof == 1)){
+      sub <- i[i$oof == 1,]
+      sub[order(sub$DAP),][1,]
+    }else{
+      i[i$DAP == max(i$DAP),][1,]
+    }))
     dat$srv <- with(dat,Surv(time=DAP,event=oof))
-    mod1 <- summary(survfit(srv ~ Drought+Genotype+Microbes, data = dat, conf.type = "log-log"),time=min(dat$DAP):max(dat$DAP))
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
+    mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):max(merged$data$DAP))
     mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
-    mod_df$Genotype <- unlist(lapply(strsplit(mod_df$strata,","),function(i) strsplit(trimws(i[2]),"Genotype=")[[1]][2]))
-    mod_df$Drought <- unlist(lapply(strsplit(mod_df$strata,","),function(i) strsplit(trimws(i[1]),"Drought=")[[1]][2]))
-    mod_df$Microbes <- unlist(lapply(strsplit(mod_df$strata,","),function(i) strsplit(trimws(i[3]),"Microbes=")[[1]][2]))
-    head(mod_df)
+    mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
+
+    p <- ggplot(mod_df,aes(DAP,surv))
+    if(length(des)>3){
+      ggplot()
+    }else if(length(des)==3){
+      p <- p+facet_grid(as.formula(paste0(des[1],"~",des[2])))+
+             geom_line(aes_string(color=des[3]))
+    }else if(length(des)==2){
+      p <- p+facet_grid(as.formula(paste0("~",des[1])))+
+        geom_line(aes_string(color=des[2]))
+    }else{
+      p <- p+geom_line(aes_string(color=des[1]))
+    }
     
-    p <- ggplot(mod_df,aes(DAP,surv))+
-      facet_grid(Microbes~Drought)+
-      #geom_ribbon(aes(ymin=low,ymax=high),fill="gray60")+
-      geom_line(aes(color=Genotype))+
-      ylab("Out Of Frame Risk")+
+    p <- p+ylab("Out Of Frame Risk")+
       scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
       theme_light()+
       theme(axis.text = element_text(size = 14),
