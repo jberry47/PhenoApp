@@ -1120,16 +1120,14 @@ server <- function(input, output){
     if(!is.null(snapshot$data)){
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       box(width=10,title = "Summary",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-          br(),
-          textOutput("num_empties"),
-          br(),
-          textOutput("num_oof"),
           tabsetPanel(
             tabPanel(title = "Empties",
+                    textOutput("num_empties"),
                     tableOutput("empties_table")
             ),
             tabPanel(title = "Image Quality",
                      br(),
+                     textOutput("no_det"),       
                      column(6, 
                             numericInput("iqv_ylim_up", "Upper y-axis limit:", value = 10, width = 180)
                      ),
@@ -1138,7 +1136,6 @@ server <- function(input, output){
                      ),
                      br(),
                      plotOutput("iqv_plot", width = 400),
-                     textOutput("no_det"),
                      br(),
                      br(),
                      br(),
@@ -1148,6 +1145,7 @@ server <- function(input, output){
             tabPanel(title = "Water",
                    selectInput("water_facet_by", "Facet By:", des, des[1], width = 180),
                    selectInput("water_color_by", "Color By:", des, des[2], width = 180),
+                   selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180),
                    plotOutput("water_plot")
             ),
             tabPanel(title = "OOF",
@@ -1206,7 +1204,7 @@ server <- function(input, output){
   })
   
   water <- reactive({
-    ggplot(snapshot$data, aes(x = timestamp, y = weight.before))+
+    ggplot(snapshot$data, aes_string(x = "timestamp", y = input$water_var))+
       geom_point(aes_string(color = paste0("as.factor(",input$water_color_by,")")))+
       facet_grid(~eval(parse(text=input$water_facet_by)))+
       theme_light()+
