@@ -255,11 +255,16 @@ server <- function(input, output){
   observeEvent(input$phenocv_merge,{
     merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL
     from$data <- "phenocv"
+    
+    id <- showNotification(h3("Reading design file..."), duration = NULL)
+    assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
+    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+    design$data <- assoc
+    removeNotification(id)
+    
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
     img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
-    assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
-    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     colnames(img_to_barcode)[3] <- "Barcodes"
     snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
     snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
@@ -283,17 +288,12 @@ server <- function(input, output){
     sv_shapes$imgname <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))
     removeNotification(id)
     
-    id <- showNotification(h3("Joining files..."), duration = NULL)
+    id <- showNotification(h3("Joining shapes and snapshot..."), duration = NULL)
     sv_shapes <- join(sv_shapes,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
     removeNotification(id)
     
-    id <- showNotification(h3("Reading design file..."), duration = NULL)
-    assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
-    design$data <- assoc
-    removeNotification(id)
-    
-    id <- showNotification(h3("Joining files..."), duration = NULL)
-    sv_shapes <- join(sv_shapes,assoc,by="Barcodes")
+    id <- showNotification(h3("Joining shapes and design..."), duration = NULL)
+    sv_shapes <- join(sv_shapes,assoc_empty,by="Barcodes")
     sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
     removeNotification(id)
     
@@ -305,7 +305,6 @@ server <- function(input, output){
     removeNotification(id)
     
     id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
     empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
@@ -314,22 +313,26 @@ server <- function(input, output){
     merged$data <- sv_shapes
     
     id <- showNotification(h3("Reading VIS color data..."), duration = NULL)
-    vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc,2,181)
-    vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !(vis$data[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+    vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc_empty,2,181)
+    removeNotification(id)
+    id <- showNotification(h3("Removing empty pots..."), duration = NULL)
     vis$data <- vis$data[!(vis$data$Barcodes %in% empties),]
     vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
     removeNotification(id)
     
     if(input$pheno_nir_q == "Yes"){
       id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
-      nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc,2,256)
+      nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc_empty,2,256)
+      removeNotification(id)
+      id <- showNotification(h3("Removing empty pots..."), duration = NULL)
       nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
       nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
+      removeNotification(id)
+      id <- showNotification(h3("Calculating NIR average..."), duration = NULL)
       nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
       removeNotification(id)
     }
     id <- showNotification(h3("Done!"), duration = 1)
-    
   })
   
   #Data import
@@ -344,13 +347,13 @@ server <- function(input, output){
     
     id <- showNotification(h3("Reading design file..."), duration = NULL)
     assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
+    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     design$data <- assoc
     removeNotification(id)
     
     id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
     img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
     img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
-    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     colnames(img_to_barcode)[3] <- "Barcodes"
     snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
     snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
@@ -366,8 +369,7 @@ server <- function(input, output){
     
     id <- showNotification(h3("Joining design file..."), duration = NULL)
     colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
-    #shapes.df <- shapes.df[,(colnames(shapes.df)[!colnames(shapes.df) %in% c("bin-number","channel_name","values")])]
-    sv_shapes <- join(shapes.df,assoc,by="Barcodes")
+    sv_shapes <- join(shapes.df,assoc_empty,by="Barcodes")
     sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
     removeNotification(id)
     
@@ -381,7 +383,6 @@ server <- function(input, output){
     
     id <- showNotification(h3("Removing empty pots..."), duration = NULL)
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
-    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !(sv_shapes[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
     colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
     removeNotification(id)
@@ -390,13 +391,12 @@ server <- function(input, output){
     id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
     vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
     if(nrow(vis.df)!= 0){
-#      vis.df <- vis.df[,which(!apply(vis.df == 0, 2, all))]
       colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
       vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
       removeNotification(id)
       
       id <- showNotification(h3("Joining with design..."), duration = NULL)
-      vis.df <- join(vis.df,assoc,by="Barcodes")
+      vis.df <- join(vis.df,assoc_empty,by="Barcodes")
       vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
       removeNotification(id)
       
@@ -408,7 +408,6 @@ server <- function(input, output){
       removeNotification(id)
       
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !(vis.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
       vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
       removeNotification(id)
       
@@ -427,13 +426,12 @@ server <- function(input, output){
     id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
     nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
     if(nrow(nir.df)!= 0){
-#      nir.df <- nir.df[,as.numeric(which(colSums(nir.df == "0") == 0))]
       colnames(nir.df)[colnames(nir.df) == "plantbarcode"] <- "Barcodes"
       nir.df <- cbind(data.frame("meta"=rep("meta",nrow(nir.df))),data.frame(do.call(rbind,lapply(strsplit(nir.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),nir.df[,which(!(colnames(nir.df)%in%(c("bin_values","values"))))])
       removeNotification(id)
       
       id <- showNotification(h3("Joining with design..."), duration = NULL)
-      nir.df <- join(nir.df,assoc,by="Barcodes")
+      nir.df <- join(nir.df,assoc_empty,by="Barcodes")
       nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
       removeNotification(id)
       
@@ -444,7 +442,6 @@ server <- function(input, output){
       removeNotification(id)
       
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !(nir.df[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
       nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
       nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
       nir$data <- nir.df
