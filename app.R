@@ -17,6 +17,8 @@ library(factoextra)
 library(ggridges)
 library(car)
 library(survival)
+library(vegan)
+library(shinycssloaders)
 
 
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
@@ -161,7 +163,9 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                                          accept = c(".txt")),
                                                radioButtons("pheno_nir_q", "Analyze NIR data",choices = c("Yes"="Yes","No"="No")),
                                                uiOutput("phenocv_nir_q_ui"),
-                                               uiOutput("phenocv_go_ui")
+                                               uiOutput("phenocv_go_ui"),
+                                               br(),
+                                               uiOutput("phenocv_download_merged_button")
                                       ),
                                       tabPanel(title = "PlantCV",
                                                fileInput("plantcv_design_file", "Choose design file",
@@ -240,6 +244,19 @@ server <- function(input, output){
     }
   })
   
+  output$phenocv_download_merged_button <- renderUI({
+    if(!is.null(merged$data)){
+      downloadButton("phenocv_merged_table","Download Merged Data (tsv)")
+    }
+  })
+  
+  output$phenocv_merged_table <- downloadHandler(
+    filename = function() {"phenocv_merged_data.tsv"},
+    content = function(file){
+      write.table(merged$data,file,row.names = FALSE, quote = FALSE,sep = "\t")
+    }
+  )
+  
   #***********************************************************************************************
   # Merging Files Action
   #***********************************************************************************************
@@ -308,6 +325,7 @@ server <- function(input, output){
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
     empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
+    sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN    
     removeNotification(id)
     
     merged$data <- sv_shapes
@@ -385,6 +403,7 @@ server <- function(input, output){
     empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
     sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
     colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
+    sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN
     removeNotification(id)
     
     #VIS data organization
@@ -575,7 +594,7 @@ server <- function(input, output){
             tabPanel(title="ANOVA",
                      selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
                      actionButton("make_anova","Calculate ANOVA"),
-                     plotOutput("anova_plot"),
+                     withSpinner(plotOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
             ),
             tabPanel(title="Trends",
@@ -639,7 +658,7 @@ server <- function(input, output){
   anova_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova,{
     id <- showNotification(h3("Calculating variances..."), duration = NULL)
-    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     
     ext <- FALSE
@@ -650,7 +669,7 @@ server <- function(input, output){
       ext <- TRUE
     }
     
-    dat <- merged$data[merged$data$DAP==as.numeric(input$which_day),]
+    dat <- na.omit(merged$data[merged$data$DAP==as.numeric(input$which_day),])
     H2 <- c()
     for(e in s){
       fmla <- as.formula(paste0("as.numeric(",e,") ~ ",ind_fmla))
@@ -919,11 +938,24 @@ server <- function(input, output){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
       box(width=10,title = "VIS Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           tabsetPanel(
-            tabPanel(title = "PCA",
-                     selectInput("vis_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP),na.rm = T)),
-                     selectInput("vis_color_by","Color By",des,des[1]),
-                     plotOutput("vis_pca"),
-                     uiOutput("download_vis_pca_ui")
+            tabPanel("CAPS",
+                     column(width=4,
+                            br(),
+                            selectInput("vis_caps_main", width = 300,
+                                        label = "Main effect: ",
+                                        choices = c("--",des),
+                                        selected = "--"),
+                            tags$b("Partialled out variables:    "),
+                            uiOutput("vis_caps_partial"),
+                            #selectInput("vis_caps_dist",width=300,
+                            #            label="Distance Type: ",
+                            #            choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
+                            #            selected = "euclidean"),
+                            selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300)
+                     ),
+                     column(width=7,
+                            withSpinner(plotOutput("vis_caps_out"), type = 5)
+                     )
             ),
             tabPanel(title="Joyplot",
                      selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
@@ -935,25 +967,63 @@ server <- function(input, output){
     }
   })
   
-  make_vis_pca <- reactive({
-    makePCA(vis$data,input$vis_which_day,2,181,input$vis_color_by)
+  not_main <- reactiveValues(data=NULL)
+  
+  observeEvent(input$vis_caps_main,{
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    main <- input$vis_caps_main
+    pos <- des
+    not_main$data <- pos[!(pos %in% main)]
   })
   
-  output$vis_pca <- renderPlot({
-    makePCA(vis$data,input$vis_which_day,2,181,input$vis_color_by)
+  output$vis_caps_partial <- renderUI({
+    p(paste(not_main$data,collapse = ", "))
   })
   
-  output$vis_pca_download <- downloadHandler(
-    filename = function() {"vis_pca.png"},
-    content=function(file){
-      ggsave(file,make_vis_pca(),device = "png",width = 8,height = 4,dpi = 300)
-    })
-  
-  output$download_vis_pca_ui <- renderUI({
-    if(!is.null(vis$data)){
-      downloadButton("vis_pca_download","Download Plot")
+  output$vis_caps_out <- renderPlot({
+    if(input$vis_caps_main != "--"){
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
+      y <- sub[,str_detect(colnames(sub),"V")]
+      y <- y[,2:ncol(y)]
+      y <- y[,which(colSums(floor(y))!=0)]
+      x <- sub[,des]
+      form <- as.formula(paste0("y ~ ",input$vis_caps_main,"+Condition(",paste0(not_main$data,collapse="*"),")",collapse = ""))
+      cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
+      test <- data.frame(summary(cap)$sites) 
+      test <- cbind(test,x)
+      
+      ggplot(test,aes(eval(parse(text=colnames(test)[1])),eval(parse(text=colnames(test)[2]))))+
+        geom_point(aes(color=factor(eval(parse(text=input$vis_caps_main)))))+
+        stat_ellipse(aes(fill=factor(eval(parse(text=input$vis_caps_main))),color=factor(eval(parse(text=input$vis_caps_main)))),geom = "polygon",alpha=0.25)+
+        xlab(colnames(test)[1])+
+        ylab(colnames(test)[2])+
+        theme_light()+
+        theme(strip.background=element_rect(fill="gray50"),
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))+
+        theme(axis.title= element_text(size = 18))+
+        theme(axis.text = element_text(size = 14))+
+        theme(axis.ticks.length=unit(0.2,"cm"))+
+        guides(color = guide_legend(title = input$vis_caps_main))+
+        guides(fill = guide_legend(title = input$vis_caps_main))
+      
+    }else{
+      ggplot()
     }
   })
+  
+#  output$vis_pca_download <- downloadHandler(
+#    filename = function() {"vis_pca.png"},
+#    content=function(file){
+#      ggsave(file,make_vis_pca(),device = "png",width = 8,height = 4,dpi = 300)
+#    })
+  
+#  output$download_vis_pca_ui <- renderUI({
+#    if(!is.null(vis$data)){
+#      downloadButton("vis_pca_download","Download Plot")
+#    }
+#  })
   
   vis_joyplot <- reactive({
     sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
@@ -1002,6 +1072,7 @@ server <- function(input, output){
   #***********************************************************************************************
   # NIR Analysis
   #***********************************************************************************************
+  
   output$nir_ui <- renderUI({
     if(!is.null(nir$data)){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
