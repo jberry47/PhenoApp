@@ -951,7 +951,11 @@ server <- function(input, output){
                             #            label="Distance Type: ",
                             #            choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
                             #            selected = "euclidean"),
-                            selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300)
+                            selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300),
+                            actionButton("make_vis_caps", "Go"),
+                            textOutput("vis_caps_warning"),
+                            br(),
+                            uiOutput("download_vis_caps")
                      ),
                      column(width=7,
                             withSpinner(plotOutput("vis_caps_out"), type = 5)
@@ -968,6 +972,16 @@ server <- function(input, output){
   })
   
   not_main <- reactiveValues(data=NULL)
+  ready_checker <- reactiveValues(data=FALSE)
+  
+  
+  output$vis_caps_partial <- renderUI({
+      p(paste(not_main$data,collapse = ", "))
+  })
+  
+  output$vis_caps_warning <- renderText({
+    paste("This may take a few minutes to calculate.")
+  })
   
   observeEvent(input$vis_caps_main,{
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
@@ -976,22 +990,18 @@ server <- function(input, output){
     not_main$data <- pos[!(pos %in% main)]
   })
   
-  output$vis_caps_partial <- renderUI({
-    p(paste(not_main$data,collapse = ", "))
-  })
-  
-  output$vis_caps_out <- renderPlot({
-    if(input$vis_caps_main != "--"){
+  vis_caps <- eventReactive(input$make_vis_caps,{
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
       y <- sub[,str_detect(colnames(sub),"V")]
-      y <- y[,2:ncol(y)]
-      y <- y[,which(colSums(floor(y))!=0)]
+      y <- floor(y[,2:ncol(y)])
+      y <- y[,which(colSums(y)!=0)]
       x <- sub[,des]
       form <- as.formula(paste0("y ~ ",input$vis_caps_main,"+Condition(",paste0(not_main$data,collapse="*"),")",collapse = ""))
       cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
-      test <- data.frame(summary(cap)$sites) 
+      test <- data.frame(summary(cap)$sites)
       test <- cbind(test,x)
+      ready_checker$data <- TRUE
       
       ggplot(test,aes(eval(parse(text=colnames(test)[1])),eval(parse(text=colnames(test)[2]))))+
         geom_point(aes(color=factor(eval(parse(text=input$vis_caps_main)))))+
@@ -1007,23 +1017,27 @@ server <- function(input, output){
         theme(axis.ticks.length=unit(0.2,"cm"))+
         guides(color = guide_legend(title = input$vis_caps_main))+
         guides(fill = guide_legend(title = input$vis_caps_main))
-      
+  })
+  
+  output$vis_caps_out <- renderPlot({
+    if(input$vis_caps_main != "--"){
+      vis_caps()
     }else{
       ggplot()
     }
   })
   
-#  output$vis_pca_download <- downloadHandler(
-#    filename = function() {"vis_pca.png"},
-#    content=function(file){
-#      ggsave(file,make_vis_pca(),device = "png",width = 8,height = 4,dpi = 300)
-#    })
-  
-#  output$download_vis_pca_ui <- renderUI({
-#    if(!is.null(vis$data)){
-#      downloadButton("vis_pca_download","Download Plot")
-#    }
-#  })
+ output$vis_caps_download <- downloadHandler(
+   filename = function() {"vis_caps.png"},
+   content=function(file){
+     ggsave(file,vis_caps(),device = "png",width = 5,height = 4,dpi = 300)
+   })
+
+ output$download_vis_caps <- renderUI({
+   if(ready_checker$data){
+     downloadButton("vis_caps_download","Download Plot")
+   }
+ })
   
   vis_joyplot <- reactive({
     sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
