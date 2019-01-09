@@ -270,7 +270,7 @@ server <- function(input, output){
   snapshot <- reactiveValues(data=NULL)
   
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL
     from$data <- "phenocv"
     
     id <- showNotification(h3("Reading design file..."), duration = NULL)
@@ -355,7 +355,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL
     from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
     db <- input$plantcv_sql_path$datapath
@@ -958,7 +958,7 @@ server <- function(input, output){
                             uiOutput("download_vis_caps")
                      ),
                      column(width=7,
-                            withSpinner(plotOutput("vis_caps_out"), type = 5)
+                            plotOutput("vis_caps_out"), type = 5
                      )
             ),
             tabPanel(title="Joyplot",
@@ -971,12 +971,18 @@ server <- function(input, output){
     }
   })
   
-  not_main <- reactiveValues(data=NULL)
-  ready_checker <- reactiveValues(data=FALSE)
+  vis_not_main <- reactiveValues(data=NULL)
+  vis_ready_checker <- reactiveValues(data=FALSE)
+  vis_caps <- reactiveValues(data=NULL)
   
   
   output$vis_caps_partial <- renderUI({
-      p(paste(not_main$data,collapse = ", "))
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    if(length(des)==1){
+      paste("--")
+    }else if(length(des)>1){
+      p(paste(vis_not_main$data,collapse = ", "))
+    }
   })
   
   output$vis_caps_warning <- renderText({
@@ -984,30 +990,49 @@ server <- function(input, output){
   })
   
   observeEvent(input$vis_caps_main,{
+    vis_ready_checker$data <- FALSE
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     main <- input$vis_caps_main
     pos <- des
-    not_main$data <- pos[!(pos %in% main)]
+    vis_not_main$data <- pos[!(pos %in% main)]
   })
   
-  vis_caps <- eventReactive(input$make_vis_caps,{
-      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-      sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
-      y <- sub[,str_detect(colnames(sub),"V")]
-      y <- floor(y[,2:ncol(y)])
-      y <- y[,which(colSums(y)!=0)]
-      x <- sub[,des]
-      form <- as.formula(paste0("y ~ ",input$vis_caps_main,"+Condition(",paste0(not_main$data,collapse="*"),")",collapse = ""))
-      cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
-      test <- data.frame(summary(cap)$sites)
-      test <- cbind(test,x)
-      ready_checker$data <- TRUE
-      
-      ggplot(test,aes(eval(parse(text=colnames(test)[1])),eval(parse(text=colnames(test)[2]))))+
+  observeEvent(input$make_vis_caps,{
+    id <- showNotification(h3("Subsetting VIS data..."), duration = NULL)
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
+    y <- sub[,str_detect(colnames(sub),"V")]
+    y <- floor(y[,2:ncol(y)])
+    y <- y[,which(colSums(y)!=0)]
+    x <- setNames(data.frame(sub[,des]),des)
+    if(length(des)==1){
+      form <- as.formula(paste0("y ~ ",input$vis_caps_main))
+    }else if(length(des)>1){
+      form <- as.formula(paste0("y ~ ",input$vis_caps_main,"+Condition(",paste0(vis_not_main$data,collapse="*"),")",collapse = ""))
+    }
+    removeNotification(id)
+    
+    id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
+    cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
+    removeNotification(id)
+    
+    id <- showNotification(h3("Done!"), duration = NULL)
+    test <- data.frame(summary(cap)$sites)
+    test <- cbind(test,x)
+    vis_caps$data <- test
+    vis_ready_checker$data <- TRUE
+    removeNotification(id)
+  })
+
+  vis_caps_plot <- reactive({
+    if(vis_ready_checker$data){
+      ggplot(vis_caps$data,aes(eval(parse(text=colnames(vis_caps$data)[1])),eval(parse(text=colnames(vis_caps$data)[2]))))+
         geom_point(aes(color=factor(eval(parse(text=input$vis_caps_main)))))+
         stat_ellipse(aes(fill=factor(eval(parse(text=input$vis_caps_main))),color=factor(eval(parse(text=input$vis_caps_main)))),geom = "polygon",alpha=0.25)+
-        xlab(colnames(test)[1])+
-        ylab(colnames(test)[2])+
+        xlab(colnames(vis_caps$data)[1])+
+        ylab(colnames(vis_caps$data)[2])+
+        geom_hline(yintercept=0,linetype="dashed",color="gray20",size=1)+
+        geom_vline(xintercept=0,linetype="dashed",color="gray20",size=1)+
         theme_light()+
         theme(strip.background=element_rect(fill="gray50"),
               strip.text.x=element_text(size=14,color="white"),
@@ -1017,11 +1042,12 @@ server <- function(input, output){
         theme(axis.ticks.length=unit(0.2,"cm"))+
         guides(color = guide_legend(title = input$vis_caps_main))+
         guides(fill = guide_legend(title = input$vis_caps_main))
+    }
   })
   
   output$vis_caps_out <- renderPlot({
     if(input$vis_caps_main != "--"){
-      vis_caps()
+      vis_caps_plot()
     }else{
       ggplot()
     }
@@ -1030,11 +1056,11 @@ server <- function(input, output){
  output$vis_caps_download <- downloadHandler(
    filename = function() {"vis_caps.png"},
    content=function(file){
-     ggsave(file,vis_caps(),device = "png",width = 5,height = 4,dpi = 300)
+     ggsave(file,vis_caps_plot(),device = "png",width = 5.2,height = 4,dpi = 300)
    })
 
  output$download_vis_caps <- renderUI({
-   if(ready_checker$data){
+   if(vis_ready_checker$data){
      downloadButton("vis_caps_download","Download Plot")
    }
  })
@@ -1092,11 +1118,28 @@ server <- function(input, output){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
       box(width=10,title = "NIR Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           tabsetPanel(
-            tabPanel(title = "PCA",
-                     selectInput("nir_which_day","Which Day",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T))),
-                     selectInput("nir_color_by","Color By",des,des[1]),
-                     plotOutput("nir_pca"),
-                     uiOutput("download_nir_PCA_ui")
+            tabPanel("CAPS",
+                     column(width=4,
+                            br(),
+                            selectInput("nir_caps_main", width = 300,
+                                        label = "Main effect: ",
+                                        choices = c("--",des),
+                                        selected = "--"),
+                            tags$b("Partialled out variables:    "),
+                            uiOutput("nir_caps_partial"),
+                            #selectInput("nir_caps_dist",width=300,
+                            #            label="Distance Type: ",
+                            #            choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
+                            #            selected = "euclidean"),
+                            selectInput("nir_caps_which_day","Which Day:",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T)),width = 300),
+                            actionButton("make_nir_caps", "Go"),
+                            textOutput("nir_caps_warning"),
+                            br(),
+                            uiOutput("download_nir_caps")
+                     ),
+                     column(width=7,
+                            withSpinner(plotOutput("nir_caps_out"), type = 5)
+                     )
             ),
             tabPanel(title="Heatmap",
                      selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
@@ -1112,23 +1155,97 @@ server <- function(input, output){
     }
   })
   
-  nir_make_pca <- reactive({
-    makePCA(nir$data,input$nir_which_day,2,181,input$nir_color_by)
+  nir_not_main <- reactiveValues(data=NULL)
+  nir_ready_checker <- reactiveValues(data=FALSE)
+  nir_caps <- reactiveValues(data=NULL)
+  
+  
+  output$nir_caps_partial <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    if(length(des)==1){
+      paste("--")
+    }else if(length(des)>1){
+      p(paste(nir_not_main$data,collapse = ", "))
+    }
   })
   
-  output$nir_pca <- renderPlot({
-    makePCA(nir$data,input$nir_which_day,2,181,input$nir_color_by)
+  output$nir_caps_warning <- renderText({
+    paste("This may take a few minutes to calculate.")
   })
   
-  output$nir_pca_download <- downloadHandler(
-    filename = function() {"nir_pca.png"},
+  observeEvent(input$nir_caps_main,{
+    nir_ready_checker$data <- FALSE
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    main <- input$nir_caps_main
+    pos <- des
+    nir_not_main$data <- pos[!(pos %in% main)]
+  })
+  
+  observeEvent(input$make_nir_caps,{
+    id <- showNotification(h3("Subsetting NIR data..."), duration = NULL)
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    sub <- nir$data[nir$data$DAP == input$nir_caps_which_day,]
+    y <- sub[,str_detect(colnames(sub),"V")]
+    y <- floor(y[,2:ncol(y)])
+    y <- y[,which(colSums(y)!=0)]
+    x <- setNames(data.frame(sub[,des]),des)
+    if(length(des)==1){
+      form <- as.formula(paste0("y ~ ",input$nir_caps_main))
+    }else if(length(des)>1){
+      form <- as.formula(paste0("y ~ ",input$nir_caps_main,"+Condition(",paste0(nir_not_main$data,collapse="*"),")",collapse = ""))
+    }
+    removeNotification(id)
+    
+    id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
+    cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
+    removeNotification(id)
+    
+    id <- showNotification(h3("Done!"), duration = NULL)
+    test <- data.frame(summary(cap)$sites)
+    test <- cbind(test,x)
+    nir_caps$data <- test
+    nir_ready_checker$data <- TRUE
+    removeNotification(id)
+  })
+  
+  nir_caps_plot <- reactive({
+    if(nir_ready_checker$data){
+      ggplot(nir_caps$data,aes(eval(parse(text=colnames(nir_caps$data)[1])),eval(parse(text=colnames(nir_caps$data)[2]))))+
+        geom_point(aes(color=factor(eval(parse(text=input$nir_caps_main)))))+
+        stat_ellipse(aes(fill=factor(eval(parse(text=input$nir_caps_main))),color=factor(eval(parse(text=input$nir_caps_main)))),geom = "polygon",alpha=0.25)+
+        xlab(colnames(nir_caps$data)[1])+
+        ylab(colnames(nir_caps$data)[2])+
+        geom_hline(yintercept=0,linetype="dashed",color="gray20",size=1)+
+        geom_vline(xintercept=0,linetype="dashed",color="gray20",size=1)+
+        theme_light()+
+        theme(strip.background=element_rect(fill="gray50"),
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))+
+        theme(axis.title= element_text(size = 18))+
+        theme(axis.text = element_text(size = 14))+
+        theme(axis.ticks.length=unit(0.2,"cm"))+
+        guides(color = guide_legend(title = input$nir_caps_main))+
+        guides(fill = guide_legend(title = input$nir_caps_main))
+    }
+  })
+  
+  output$nir_caps_out <- renderPlot({
+    if(input$nir_caps_main != "--"){
+      nir_caps_plot()
+    }else{
+      ggplot()
+    }
+  })
+  
+  output$nir_caps_download <- downloadHandler(
+    filename = function() {"nir_caps.png"},
     content=function(file){
-      ggsave(file,nir_make_pca(),device = "png",width = 8,height = 4,dpi = 300)
+      ggsave(file,nir_caps_plot(),device = "png",width = 5.2,height = 4,dpi = 300)
     })
   
-  output$download_nir_PCA_ui <- renderUI({
-    if(!is.null(nir$data)){
-      downloadButton("nir_pca_download","Download Plot")
+  output$download_nir_caps <- renderUI({
+    if(nir_ready_checker$data){
+      downloadButton("nir_caps_download","Download Plot")
     }
   })
   
