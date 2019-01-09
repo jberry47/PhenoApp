@@ -565,7 +565,6 @@ server <- function(input, output){
   outlier_check <-reactiveValues(data=FALSE)
   
   observeEvent(input$remove_outliers,{
-    print(outlier_check$data)
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
     if(from$data == "plantcv"){
@@ -591,7 +590,6 @@ server <- function(input, output){
   })
   
   observeEvent(input$remove_outliers,{
-    print(outlier_check$data)
     disable("remove_outliers")
     disable("detect_outliers")
   })
@@ -1088,10 +1086,10 @@ server <- function(input, output){
                                         selected = "--"),
                             tags$b("Partialled out variables:    "),
                             uiOutput("vis_caps_partial"),
-                            #selectInput("vis_caps_dist",width=300,
-                            #            label="Distance Type: ",
-                            #            choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
-                            #            selected = "euclidean"),
+                            selectInput("vis_caps_dist",width=300,
+                                        label="Distance Type: ",
+                                        choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
+                                        selected = "euclidean"),
                             selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300),
                             actionButton("make_vis_caps", "Go"),
                             textOutput("vis_caps_warning"),
@@ -1138,7 +1136,13 @@ server <- function(input, output){
     vis_not_main$data <- pos[!(pos %in% main)]
   })
   
+  observeEvent({ 
+    input$vis_caps_dist
+    input$vis_caps_which_day
+  },{enable("make_vis_caps")})
+  
   observeEvent(input$make_vis_caps,{
+    disable("make_vis_caps")
     id <- showNotification(h3("Subsetting VIS data..."), duration = NULL)
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
@@ -1154,7 +1158,7 @@ server <- function(input, output){
     removeNotification(id)
     
     id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
-    cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
+    cap <- capscale(form,x,dist=input$vis_caps_dist,sqrt.dist = T)
     removeNotification(id)
     
     id <- showNotification(h3("Done!"), duration = NULL)
@@ -1268,10 +1272,10 @@ server <- function(input, output){
                                         selected = "--"),
                             tags$b("Partialled out variables:    "),
                             uiOutput("nir_caps_partial"),
-                            #selectInput("nir_caps_dist",width=300,
-                            #            label="Distance Type: ",
-                            #            choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
-                            #            selected = "euclidean"),
+                            selectInput("nir_caps_dist",width=300,
+                                        label="Distance Type: ",
+                                        choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
+                                        selected = "euclidean"),
                             selectInput("nir_caps_which_day","Which Day:",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T)),width = 300),
                             actionButton("make_nir_caps", "Go"),
                             textOutput("nir_caps_warning"),
@@ -1322,11 +1326,18 @@ server <- function(input, output){
     nir_not_main$data <- pos[!(pos %in% main)]
   })
   
+  observeEvent({ 
+    input$nir_caps_dist
+    input$nir_caps_which_day
+  },{enable("make_nir_caps")})
+  
   observeEvent(input$make_nir_caps,{
+    disable("make_nir_caps")
     id <- showNotification(h3("Subsetting NIR data..."), duration = NULL)
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     sub <- nir$data[nir$data$DAP == input$nir_caps_which_day,]
-    y <- sub[,str_detect(colnames(sub),"V")]
+    sub <- sub[which(rowSums(sub[,2:256])!=0),]
+    y <- sub[,2:256]
     y <- floor(y[,2:ncol(y)])
     y <- y[,which(colSums(y)!=0)]
     x <- setNames(data.frame(sub[,des]),des)
@@ -1338,7 +1349,7 @@ server <- function(input, output){
     removeNotification(id)
     
     id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
-    cap <- capscale(form,x,dist="euclidean",sqrt.dist = T)
+    cap <- capscale(form,x,dist=input$nir_caps_dist,sqrt.dist = T)
     removeNotification(id)
     
     id <- showNotification(h3("Done!"), duration = NULL)
