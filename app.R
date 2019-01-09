@@ -601,15 +601,21 @@ server <- function(input, output){
   #***********************************************************************************************
   output$shapes_ui <- renderUI({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds"))]
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
     if(!is.null(merged$data)){
       box(width=10,title = "Shapes Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           tabsetPanel(
-            tabPanel(title="ANOVA",
+            tabPanel(title="Shapes ANOVA",
                      selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
                      actionButton("make_anova","Calculate ANOVA"),
                      withSpinner(plotOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
+            ),
+            tabPanel(title="Temporal ANOVA",
+              selectInput("anova_ts_shape","Which Shape",s,"area"),
+              actionButton("make_anova_ts","Calculate ANOVA"),
+              withSpinner(plotOutput("anova_ts_plot"), type = 5),
+              uiOutput("download_anova_ts_ui")
             ),
             tabPanel(title="Trends",
                      selectInput("dep_var","Y-axis",s,"area"),
@@ -667,7 +673,7 @@ server <- function(input, output){
   
 
   #***********************************************************************************************
-  # ANOVA box
+  # Shapes ANOVA
   #***********************************************************************************************
   anova_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova,{
@@ -779,6 +785,127 @@ server <- function(input, output){
   output$download_shapes_anova_ui <- renderUI({
     if(!is.null(anova_dat$data)){
       downloadButton("shapes_anova_download","Download Plot")
+    }
+  })
+  
+  #***********************************************************************************************
+  # Temporal ANOVA
+  #***********************************************************************************************
+  anova_ts_dat <- reactiveValues(data=NULL)
+  observeEvent(input$make_anova_ts,{
+    id <- showNotification(h3("Calculating variances..."), duration = NULL)
+    which_shape <- input$anova_ts_shape
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    
+    ext <- FALSE
+    if(length(des)==2){
+      ind_fmla <- paste0("(1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")")
+    }else{
+      ind_fmla <- paste(paste0("(1|",des,")"),collapse = "+")
+      ext <- TRUE
+    }
+
+    H2 <- c()
+    fmla <- as.formula(paste0("as.numeric(",which_shape,") ~ ",ind_fmla))
+    
+    ctab <- lapply(split(merged$data,merged$data$DAP),function(i) any(!apply(i[,des],2,function(j) length(unique(j))>1)))
+    for(day in as.numeric(as.character(names(ctab)[!unlist(ctab)]))){
+      dat <- na.omit(merged$data[merged$data$DAP == as.numeric(day),])
+      model <- lmer(fmla,data = dat)
+      re<- VarCorr(model)
+      res<-attr(VarCorr(model), "sc")^2
+      
+      if(!ext){
+        interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
+        des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
+        des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
+        
+        tot.var<-sum(as.numeric(re),res)
+        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+        
+        h2 <- c((des1.var/tot.var),
+          (des2.var/tot.var),
+          (interaction.var/tot.var),
+          unexp,
+          day)
+        H2 <- rbind(H2,h2) 
+      }else{
+        var <- lapply(des,function(i){as.numeric(attr(re[[i]],"stddev"))^2})
+        
+        tot.var <- sum(as.numeric(re),res)
+        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+        
+        h2 <- c(unlist(var)/tot.var,unexp,day)
+        H2 <- rbind(H2,h2)
+      }
+    }
+    H2 <- data.frame(H2)
+    rownames(H2) <- NULL
+    if(!ext){
+      colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Day")
+    }else{
+      colnames(H2) <- c(des,"Unexplained","Day")
+    }
+
+    H2_melt <- melt(H2,id=c("Day"))
+    
+    if(!ext){
+      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
+    }else{
+      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des))
+    }
+    H2_melt$shape <- which_shape
+    anova_ts_dat$data <- H2_melt
+    removeNotification(id)
+  })
+  
+  anova_ts <- reactive({
+    if(!is.null(anova_ts_dat$data)){
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      which_shape <- anova_ts_dat$data$shape[1]
+      p <- ggplot(data=anova_ts_dat$data,aes(as.numeric(Day),as.numeric(value)*100))+
+        geom_line(aes(color=variable),size=1)+
+        geom_point(aes(color=variable),size=3)+
+        ggtitle(which_shape)+
+        ylab("Variance Explained (%)")+
+        xlab("DAP")+
+        theme_bw()+
+        theme(strip.background=element_rect(fill="gray50"),
+          strip.text.x=element_text(size=14,color="white"),
+          strip.text.y=element_text(size=14,color="white"))+
+        theme(axis.text = element_text(size = 14),
+          axis.title.y= element_text(size = 18))+
+        theme(axis.ticks.length=unit(0.2,"cm"),
+          plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
+        theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
+        theme(legend.position = "right")+
+        guides(color = guide_legend(title = ""))
+      if(length(des) == 2){
+        p <- p+scale_color_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))
+      }else{
+        hues <- seq(15, 375, length = length(des) + 1)
+        cols <- hcl(h = hues, l = 65, c = 100)[1:length(des)]
+        p <- p+scale_color_manual(values = c("gray60",cols))
+      }
+      p
+    }
+  })
+  
+  output$anova_ts_plot <- renderPlot({
+    if(!is.null(anova_ts_dat$data)){
+      anova_ts()
+    }
+  })
+  
+  output$anova_ts_download <- downloadHandler(
+    filename = function() {"anova_ts.png"},
+    content=function(file){
+      ggsave(file,anova_ts(),device = "png",width = 8,height = 3.5,dpi = 300)
+    })
+  
+  output$download_anova_ts_ui <- renderUI({
+    if(!is.null(anova_ts_dat$data)){
+      downloadButton("anova_ts_download","Download Plot")
     }
   })
   
