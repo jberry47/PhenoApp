@@ -795,7 +795,7 @@ server <- function(input, output){
     fmla <- as.formula(paste0("as.numeric(",which_shape,") ~ ",ind_fmla))
     
     ctab <- lapply(split(merged$data,merged$data$DAP),function(i) any(!apply(i[,des],2,function(j) length(unique(j))>1)))
-    for(day in as.character(names(ctab)[!unlist(ctab)])){
+    for(day in as.numeric(as.character(names(ctab)[!unlist(ctab)]))){
       dat <- na.omit(merged$data[merged$data$DAP == as.numeric(day),])
       model <- lmer(fmla,data = dat)
       re<- VarCorr(model)
