@@ -793,7 +793,9 @@ server <- function(input, output){
 
     H2 <- c()
     fmla <- as.formula(paste0("as.numeric(",which_shape,") ~ ",ind_fmla))
-    for(day in 4:max(merged$data$DAP)){
+    
+    ctab <- lapply(split(merged$data,merged$data$DAP),function(i) any(!apply(i[,des],2,function(j) length(unique(j))>1)))
+    for(day in as.character(names(ctab)[!unlist(ctab)])){
       dat <- na.omit(merged$data[merged$data$DAP == as.numeric(day),])
       model <- lmer(fmla,data = dat)
       re<- VarCorr(model)
@@ -847,7 +849,7 @@ server <- function(input, output){
     if(!is.null(anova_ts_dat$data)){
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       which_shape <- anova_ts_dat$data$shape[1]
-      p <- ggplot(data=anova_ts_dat$data,aes(Day,value*100))+
+      p <- ggplot(data=anova_ts_dat$data,aes(as.numeric(Day),as.numeric(value)*100))+
         geom_line(aes(color=variable),size=1)+
         geom_point(aes(color=variable),size=3)+
         ggtitle(which_shape)+
