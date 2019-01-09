@@ -42,6 +42,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                       )
                     ),
                     dashboardBody(
+                      useShinyjs(),
                       fluidRow(
                         tags$head(tags$style("#container * {display: inline;}")),
                         tags$style(HTML("
@@ -186,11 +187,11 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                 uiOutput("shapes_ui"),
                                 uiOutput("vis_ui"),
                                 uiOutput("nir_ui")
-                        )
                                 )
-                                    )
-                                    )
+                        )
                       )
+                      )
+                    )
 
 server <- function(input, output){
   output$phenocv_nir_q_ui <- renderUI({
@@ -270,7 +271,7 @@ server <- function(input, output){
   snapshot <- reactiveValues(data=NULL)
   
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL
     from$data <- "phenocv"
     
     id <- showNotification(h3("Reading design file..."), duration = NULL)
@@ -355,7 +356,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL
     from$data <- "plantcv"
     id <- showNotification(h3("Connecting to db..."), duration = NULL)
     db <- input$plantcv_sql_path$datapath
@@ -486,7 +487,9 @@ server <- function(input, output){
     if(!is.null(merged$data)){
       box(width=10,title = "Outlier Detection and Removal",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           p("This step is not required"),
-          actionButton("detect_outliers","Detect Outliers"),
+          if(!outlier_check$data){
+            actionButton("detect_outliers","Detect Outliers")
+            },
           textOutput("outliers_model"),
           textOutput("num_outliers"),
           plotOutput("cooksd_plot"),
@@ -500,6 +503,7 @@ server <- function(input, output){
   cooksd <- reactiveValues(data=NULL)
   outlier_fmla <- reactiveValues(data=NULL)
   observeEvent(input$detect_outliers,{
+    disable("detect_outliers")
     id <- showNotification(h3("Calculating Cook's Distance..."), duration = NULL)
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     outlier_fmla$data <- paste("as.numeric(area) ~",paste(c(des,"as.factor(DAP)"),collapse = ":"))
@@ -553,12 +557,15 @@ server <- function(input, output){
   })
   
   output$remove_outliers_ui <- renderUI({
-    if(!is.null(cooksd$data)){
+    if(!is.null(cooksd$data) & !outlier_check$data){
       actionButton("remove_outliers","Remove Outliers")
     }
   })
   
+  outlier_check <-reactiveValues(data=FALSE)
+  
   observeEvent(input$remove_outliers,{
+    print(outlier_check$data)
     id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
     merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
     if(from$data == "plantcv"){
@@ -580,6 +587,13 @@ server <- function(input, output){
       }
     }
     removeNotification(id)
+    outlier_check$data <- TRUE
+  })
+  
+  observeEvent(input$remove_outliers,{
+    print(outlier_check$data)
+    disable("remove_outliers")
+    disable("detect_outliers")
   })
   
   #***********************************************************************************************
