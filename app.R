@@ -20,7 +20,6 @@ library(survival)
 library(vegan)
 library(shinycssloaders)
 
-
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                     dashboardHeader(
                       title = tagList(
@@ -269,89 +268,110 @@ server <- function(input, output){
   empties1 <- reactiveValues(data=NULL)
   from <- reactiveValues(data=NULL)
   snapshot <- reactiveValues(data=NULL)
-  
+  imp_error_step <- reactiveValues(data=NULL)
+
   observeEvent(input$phenocv_merge,{
     merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL
     from$data <- "phenocv"
-    
-    id <- showNotification(h3("Reading design file..."), duration = NULL)
-    assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
-    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-    design$data <- assoc
-    removeNotification(id)
-    
-    id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
-    img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
-    img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
-    colnames(img_to_barcode)[3] <- "Barcodes"
-    snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
-    snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
-    img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
-    img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
-    removeNotification(id)
-    
-    id <- showNotification(h3("Reading shapes file..."), duration = NULL)
-    sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
-    sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
-    
-    if(ncol(sv_shapes)==21){
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof")
-      shapes$data <- sv_shapes
-    }else{
-      colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof", "det")
-      shapes$data <- sv_shapes
-    }
-    
-    sv_shapes$id <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
-    sv_shapes$imgname <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))
-    removeNotification(id)
-    
-    id <- showNotification(h3("Joining shapes and snapshot..."), duration = NULL)
-    sv_shapes <- join(sv_shapes,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
-    removeNotification(id)
-    
-    id <- showNotification(h3("Joining shapes and design..."), duration = NULL)
-    sv_shapes <- join(sv_shapes,assoc_empty,by="Barcodes")
-    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
-    removeNotification(id)
-    
-    id <- showNotification(h3("Adding time columns..."), duration = NULL)
-    sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
-    beg <- min(sv_shapes$timestamp)
-    sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
-    sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
-    removeNotification(id)
-    
-    id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-    empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
-    empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
-    sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
-    sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN    
-    removeNotification(id)
-    
-    merged$data <- sv_shapes
-    
-    id <- showNotification(h3("Reading VIS color data..."), duration = NULL)
-    vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc_empty,2,181)
-    removeNotification(id)
-    id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-    vis$data <- vis$data[!(vis$data$Barcodes %in% empties),]
-    vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
-    removeNotification(id)
-    
-    if(input$pheno_nir_q == "Yes"){
-      id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
-      nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc_empty,2,256)
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Reading design file"
+      id <- showNotification(h3("Reading design file..."), duration = NULL)
+      assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
+      assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+      design$data <- assoc
+      removeNotification(id)
+
+      imp_error_step$data <- "Reading snapshot file"      
+      id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
+      img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+      img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
+      colnames(img_to_barcode)[3] <- "Barcodes"
+      snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
+      snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
+      img_to_barcode <- img_to_barcode[img_to_barcode$tiles != "",]
+      img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
+      removeNotification(id)
+      
+      imp_error_step$data <- "Reading shapes file"
+      id <- showNotification(h3("Reading shapes file..."), duration = NULL)
+      sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
+      sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
+      
+      if(ncol(sv_shapes)==21){
+        colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof")
+        shapes$data <- sv_shapes
+      }else{
+        colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof", "det")
+        shapes$data <- sv_shapes
+      }
+      
+      sv_shapes$id <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
+      sv_shapes$imgname <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))
+      removeNotification(id)
+      
+      imp_error_step$data <- "Joining shapes and snapshot"
+      id <- showNotification(h3("Joining shapes and snapshot..."), duration = NULL)
+      sv_shapes <- join(sv_shapes,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
+      removeNotification(id)
+      
+      imp_error_step$data <- "Joining shapes and design"
+      id <- showNotification(h3("Joining shapes and design..."), duration = NULL)
+      sv_shapes <- join(sv_shapes,assoc_empty,by="Barcodes")
+      sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
+      removeNotification(id)
+      
+      imp_error_step$data <- "Adding time columns"
+      id <- showNotification(h3("Adding time columns..."), duration = NULL)
+      sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
+      beg <- min(sv_shapes$timestamp)
+      sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+      sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
+      removeNotification(id)
+      
+      imp_error_step$data <- "Removing empty pots"
+      id <- showNotification(h3("Removing empty pots..."), duration = NULL)
+      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+      empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
+      sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
+      sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN    
+      removeNotification(id)
+      
+      merged$data <- sv_shapes
+      
+      imp_error_step$data <- "Reading VIS color data"
+      id <- showNotification(h3("Reading VIS color data..."), duration = NULL)
+      vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc_empty,2,181)
       removeNotification(id)
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
-      nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
+      vis$data <- vis$data[!(vis$data$Barcodes %in% empties),]
+      vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
       removeNotification(id)
-      id <- showNotification(h3("Calculating NIR average..."), duration = NULL)
-      nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
+      
+      if(input$pheno_nir_q == "Yes"){
+        imp_error_step$data <- "Reading NIR color data"
+        id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
+        nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc_empty,2,256)
+        removeNotification(id)
+        id <- showNotification(h3("Removing empty pots..."), duration = NULL)
+        nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
+        nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
+        removeNotification(id)
+        id <- showNotification(h3("Calculating NIR average..."), duration = NULL)
+        nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
+        removeNotification(id)
+      }
+      id <- showNotification(h3("Done!"), duration = 1)
+    }),warning=function(war){},error=function(err){
       removeNotification(id)
-    }
-    id <- showNotification(h3("Done!"), duration = 1)
+      locs <- extractStackTrace(conditionStackTrace(err))$loc
+      loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
+      showModal(modalDialog(
+        p("Error in code block: ",tags$b(imp_error_step$data)),
+        p("Error caught: ",code(err)),
+        p("Line number ",as.numeric(loc_lines),": ",code(scan("app.R", '', skip = as.numeric(loc_lines)-1, nlines = 1, sep = '\n')))
+      ))
+    }))
+
   })
   
   #Data import
@@ -1632,11 +1652,6 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
     p
   })
-  
-  #ggsave("pheno4_ww_oof_risk.png",width=9.95,height=3.9,plot = p, dpi = 300)
-  
-  isolate({source("data/documentation.R",local=T)})
-  
 }
 
 shinyApp(ui, server)
