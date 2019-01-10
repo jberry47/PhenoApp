@@ -193,6 +193,16 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                     )
 
 server <- function(input, output){
+  report_error <- function(err){
+    locs <- extractStackTrace(conditionStackTrace(err))$loc
+    loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
+    showModal(modalDialog(
+      p("Error in code block: ",tags$b(imp_error_step$data)),
+      p("Error caught: ",code(err)),
+      p("Line number ",as.numeric(loc_lines),": ",code(scan("app.R", '', skip = as.numeric(loc_lines)-1, nlines = 1, sep = '\n')))
+    ))
+  }
+  
   output$phenocv_nir_q_ui <- renderUI({
     if(input$pheno_nir_q == "Yes"){
       fileInput("phenocv_nir_file", "Choose nir file",
@@ -274,14 +284,14 @@ server <- function(input, output){
     merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
     from$data <- "phenocv"
     res <- try(withCallingHandlers(withLogErrors({
-      imp_error_step$data <- "Reading design file"
+      imp_error_step$data <- "PhenoCV - Reading design file"
       id <- showNotification(h3("Reading design file..."), duration = NULL)
       assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
       assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
       design$data <- assoc
       removeNotification(id)
 
-      imp_error_step$data <- "Reading snapshot file"      
+      imp_error_step$data <- "PhenoCV - Reading snapshot file"      
       id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
       img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
       img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
@@ -292,7 +302,7 @@ server <- function(input, output){
       img_to_barcode <- img_to_barcode[,c("id","Barcodes","timestamp")]
       removeNotification(id)
       
-      imp_error_step$data <- "Reading shapes file"
+      imp_error_step$data <- "PhenoCV - Reading shapes file"
       id <- showNotification(h3("Reading shapes file..."), duration = NULL)
       sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
       sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
@@ -309,18 +319,18 @@ server <- function(input, output){
       sv_shapes$imgname <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))
       removeNotification(id)
       
-      imp_error_step$data <- "Joining shapes and snapshot"
+      imp_error_step$data <- "PhenoCV - Joining shapes and snapshot"
       id <- showNotification(h3("Joining shapes and snapshot..."), duration = NULL)
       sv_shapes <- join(sv_shapes,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
       removeNotification(id)
       
-      imp_error_step$data <- "Joining shapes and design"
+      imp_error_step$data <- "PhenoCV - Joining shapes and design"
       id <- showNotification(h3("Joining shapes and design..."), duration = NULL)
       sv_shapes <- join(sv_shapes,assoc_empty,by="Barcodes")
       sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
       removeNotification(id)
       
-      imp_error_step$data <- "Adding time columns"
+      imp_error_step$data <- "PhenoCV - Adding time columns"
       id <- showNotification(h3("Adding time columns..."), duration = NULL)
       sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
       beg <- min(sv_shapes$timestamp)
@@ -328,7 +338,7 @@ server <- function(input, output){
       sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
       removeNotification(id)
       
-      imp_error_step$data <- "Removing empty pots"
+      imp_error_step$data <- "PhenoCV - Removing empty pots"
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
       empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
       empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
@@ -338,7 +348,7 @@ server <- function(input, output){
       
       merged$data <- sv_shapes
       
-      imp_error_step$data <- "Reading VIS color data"
+      imp_error_step$data <- "PhenoCV - Reading VIS color data"
       id <- showNotification(h3("Reading VIS color data..."), duration = NULL)
       vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc_empty,2,181)
       removeNotification(id)
@@ -348,7 +358,7 @@ server <- function(input, output){
       removeNotification(id)
       
       if(input$pheno_nir_q == "Yes"){
-        imp_error_step$data <- "Reading NIR color data"
+        imp_error_step$data <- "PhenoCV - Reading NIR color data"
         id <- showNotification(h3("Reading NIR color data..."), duration = NULL)
         nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc_empty,2,256)
         removeNotification(id)
@@ -363,13 +373,7 @@ server <- function(input, output){
       id <- showNotification(h3("Done!"), duration = 1)
     }),warning=function(war){},error=function(err){
       removeNotification(id)
-      locs <- extractStackTrace(conditionStackTrace(err))$loc
-      loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
-      showModal(modalDialog(
-        p("Error in code block: ",tags$b(imp_error_step$data)),
-        p("Error caught: ",code(err)),
-        p("Line number ",as.numeric(loc_lines),": ",code(scan("app.R", '', skip = as.numeric(loc_lines)-1, nlines = 1, sep = '\n')))
-      ))
+      report_error(err)
     }))
 
   })
@@ -379,21 +383,21 @@ server <- function(input, output){
     merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
     from$data <- "plantcv"
     res <- try(withCallingHandlers(withLogErrors({
-      imp_error_step$data <- "Connecting to db"
+      imp_error_step$data <- "PlantCV - Connecting to db"
       id <- showNotification(h3("Connecting to db..."), duration = NULL)
       db <- input$plantcv_sql_path$datapath
       drv <- dbDriver("SQLite")
       conn <- dbConnect(drv, dbname = db)
       removeNotification(id)
 
-      imp_error_step$data <- "Reading design file"
+      imp_error_step$data <- "PlantCV - Reading design file"
       id <- showNotification(h3("Reading design file..."), duration = NULL)
       assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
       assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
       design$data <- assoc
       removeNotification(id)
       
-      imp_error_step$data <- "Reading snapshot file"
+      imp_error_step$data <- "PlantCV - Reading snapshot file"
       id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
       img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
       img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
@@ -402,7 +406,7 @@ server <- function(input, output){
       snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
       removeNotification(id)
       
-      imp_error_step$data <- "Querying db for shapes data"
+      imp_error_step$data <- "PlantCV - Querying db for shapes data"
       id <- showNotification(h3("Querying db for shapes data..."), duration = NULL)
       meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
       shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
@@ -411,14 +415,14 @@ server <- function(input, output){
       shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
       removeNotification(id)
       
-      imp_error_step$data <- "Joining design file"
+      imp_error_step$data <- "PlantCV - Joining design file"
       id <- showNotification(h3("Joining design file..."), duration = NULL)
       colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
       sv_shapes <- join(shapes.df,assoc_empty,by="Barcodes")
       sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
       removeNotification(id)
       
-      imp_error_step$data <- "Adding time columns"
+      imp_error_step$data <- "PlantCV - Adding time columns"
       id <- showNotification(h3("Adding time columns..."), duration = NULL)
       sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
       beg <- min(sv_shapes$timestamp)
@@ -427,7 +431,7 @@ server <- function(input, output){
       sv_shapes$timestamp <- as.character(sv_shapes$timestamp)
       removeNotification(id)
       
-      imp_error_step$data <- "Removing empty pots"
+      imp_error_step$data <- "PlantCV - Removing empty pots"
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
       empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
       sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
@@ -436,7 +440,7 @@ server <- function(input, output){
       removeNotification(id)
       
       #VIS data organization
-      imp_error_step$data <- "Querying db for VIS data"
+      imp_error_step$data <- "PlantCV - Querying db for VIS data"
       id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
       vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
       if(nrow(vis.df)!= 0){
@@ -472,7 +476,7 @@ server <- function(input, output){
       }
       
       #NIR data organization
-      imp_error_step$data <- "Querying db for NIR data"
+      imp_error_step$data <- "PlantCV - Querying db for NIR data"
       id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
       nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
       if(nrow(nir.df)!= 0){
@@ -502,7 +506,7 @@ server <- function(input, output){
         nir$data <- NULL
       }
       
-      imp_error_step$data <- "Finalizing"
+      imp_error_step$data <- "PlantCV - Finalizing"
       merged$data <- sv_shapes
       shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
       empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
@@ -512,13 +516,7 @@ server <- function(input, output){
     }),warning=function(war){},error=function(err){
       removeNotification(id)
       dbDisconnect(conn)
-      locs <- extractStackTrace(conditionStackTrace(err))$loc
-      loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
-      showModal(modalDialog(
-        p("Error in code block: ",tags$b(imp_error_step$data)),
-        p("Error caught: ",code(err)),
-        p("Line number ",as.numeric(loc_lines),": ",code(scan("app.R", '', skip = as.numeric(loc_lines)-1, nlines = 1, sep = '\n')))
-      ))
+      report_error(err)
     }))
 
   })
@@ -546,13 +544,19 @@ server <- function(input, output){
   cooksd <- reactiveValues(data=NULL)
   outlier_fmla <- reactiveValues(data=NULL)
   observeEvent(input$detect_outliers,{
-    disable("detect_outliers")
-    id <- showNotification(h3("Calculating Cook's Distance..."), duration = NULL)
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    outlier_fmla$data <- paste("as.numeric(area) ~",paste(c(des,"as.factor(DAP)"),collapse = ":"))
-    fmla <- as.formula(outlier_fmla$data)
-    cooksd$data <- cooks.distance(glm(data=merged$data,fmla))
-    removeNotification(id)
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Detect outliers"
+      disable("detect_outliers")
+      id <- showNotification(h3("Calculating Cook's Distance..."), duration = NULL)
+      des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+      outlier_fmla$data <- paste("as.numeric(area) ~",paste(c(des,"as.factor(DAP)"),collapse = ":"))
+      fmla <- as.formula(outlier_fmla$data)
+      cooksd$data <- cooks.distance(glm(data=merged$data,fmla))
+      removeNotification(id)
+    }),warning=function(war){},error=function(err){
+      removeNotification(id)
+      report_error(err)
+    }))
   })
   
   output$num_outliers <- renderText({
@@ -608,28 +612,34 @@ server <- function(input, output){
   outlier_check <-reactiveValues(data=FALSE)
   
   observeEvent(input$remove_outliers,{
-    id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
-    merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
-    if(from$data == "plantcv"){
-      if(!is.null(vis$data)){
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Removing outliers"
+      id <- showNotification(h3("Removing from shapes, VIS, and NIR files..."), duration = NULL)
+      merged$data <- merged$data[cooksd$data < 3*mean(cooksd$data),]
+      if(from$data == "plantcv"){
+        if(!is.null(vis$data)){
+          vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
+        }
+        if(!is.null(nir$data)){
+          nir$data <- nir$data[cooksd$data < 3*mean(cooksd$data),]
+        }
+      }else{
         vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
+        outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
+        outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
+        outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
+        if(input$pheno_nir_q == "Yes"){
+          nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
+          nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
+          nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),] 
+        }
       }
-      if(!is.null(nir$data)){
-        nir$data <- nir$data[cooksd$data < 3*mean(cooksd$data),]
-      }
-    }else{
-      vis$data <- vis$data[cooksd$data < 3*mean(cooksd$data),]
-      outliers <- merged$data[cooksd$data >= 3*mean(cooksd$data),]
-      outliers$camera_angle <- unlist(lapply(strsplit(outliers$meta,"_"),function(i) i[3]))
-      outliers$unique_id <- paste(outliers$Barcodes,outliers$DAP,outliers$camera_angle,sep="_")
-      if(input$pheno_nir_q == "Yes"){
-        nir$data$camera_angle <- unlist(lapply(strsplit(as.character(nir$data$V1),"_"),function(i) i[3]))
-        nir$data$unique_id <- paste(nir$data$Barcodes,nir$data$DAP,nir$data$camera_angle,sep="_")
-        nir$data <- nir$data[!(nir$data$unique_id %in% outliers$unique_id),] 
-      }
-    }
-    removeNotification(id)
-    outlier_check$data <- TRUE
+      removeNotification(id)
+      outlier_check$data <- TRUE
+    }),warning=function(war){},error=function(err){
+      removeNotification(id)
+      report_error(err)
+    }))
   })
   
   observeEvent(input$remove_outliers,{
@@ -718,67 +728,73 @@ server <- function(input, output){
   #***********************************************************************************************
   anova_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova,{
-    id <- showNotification(h3("Calculating variances..."), duration = NULL)
-    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
-    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    
-    ext <- FALSE
-    if(length(des)==2){
-      ind_fmla <- paste0("(1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")")
-    }else{
-      ind_fmla <- paste(paste0("(1|",des,")"),collapse = "+")
-      ext <- TRUE
-    }
-    
-    dat <- na.omit(merged$data[merged$data$DAP==as.numeric(input$which_day),])
-    H2 <- c()
-    for(e in s){
-      fmla <- as.formula(paste0("as.numeric(",e,") ~ ",ind_fmla))
-      model <- lmer(fmla,data = dat)
-      re<- VarCorr(model)
-      res<-attr(VarCorr(model), "sc")^2
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Shapes Anova"
+      id <- showNotification(h3("Calculating variances..."), duration = NULL)
+      s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      
+      ext <- FALSE
+      if(length(des)==2){
+        ind_fmla <- paste0("(1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")")
+      }else{
+        ind_fmla <- paste(paste0("(1|",des,")"),collapse = "+")
+        ext <- TRUE
+      }
+      
+      dat <- na.omit(merged$data[merged$data$DAP==as.numeric(input$which_day),])
+      H2 <- c()
+      for(e in s){
+        fmla <- as.formula(paste0("as.numeric(",e,") ~ ",ind_fmla))
+        model <- lmer(fmla,data = dat)
+        re<- VarCorr(model)
+        res<-attr(VarCorr(model), "sc")^2
+        
+        if(!ext){
+          interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
+          des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
+          des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
+          
+          tot.var<-sum(as.numeric(re),res)
+          unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+          
+          h2 <- c((des1.var/tot.var),
+            (des2.var/tot.var),
+            (interaction.var/tot.var),
+            unexp)
+          H2 <- rbind(H2,h2) 
+        }else{
+          var <- lapply(des,function(i){as.numeric(attr(re[[i]],"stddev"))^2})
+          
+          tot.var <- sum(as.numeric(re),res)
+          unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+          
+          h2 <- c(unlist(var)/tot.var,unexp)
+          H2 <- rbind(H2,h2)
+        }
+      }
+      H2 <- data.frame(H2,row.names = s)
+      H2$Shape <- rownames(H2)
+      rownames(H2) <- NULL
+      if(!ext){
+        colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Shape")
+      }else{
+        colnames(H2) <- c(des,"Unexplained","Shape")
+      }
+      H2$Shape <-  ordered(H2$Shape,levels=H2$Shape[order(H2$Unexplained)])
+      H2_melt <- melt(H2,id=c("Shape"))
       
       if(!ext){
-        interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
-        des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
-        des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
-        
-        tot.var<-sum(as.numeric(re),res)
-        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
-        
-        h2 <- c((des1.var/tot.var),
-          (des2.var/tot.var),
-          (interaction.var/tot.var),
-          unexp)
-        H2 <- rbind(H2,h2) 
+        H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
       }else{
-        var <- lapply(des,function(i){as.numeric(attr(re[[i]],"stddev"))^2})
-
-        tot.var <- sum(as.numeric(re),res)
-        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
-        
-        h2 <- c(unlist(var)/tot.var,unexp)
-        H2 <- rbind(H2,h2)
+        H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des))
       }
-    }
-    H2 <- data.frame(H2,row.names = s)
-    H2$Shape <- rownames(H2)
-    rownames(H2) <- NULL
-    if(!ext){
-      colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Shape")
-    }else{
-      colnames(H2) <- c(des,"Unexplained","Shape")
-    }
-    H2$Shape <-  ordered(H2$Shape,levels=H2$Shape[order(H2$Unexplained)])
-    H2_melt <- melt(H2,id=c("Shape"))
-    
-    if(!ext){
-      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
-    }else{
-      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des))
-    }
-    anova_dat$data <- H2_melt
-    removeNotification(id)
+      anova_dat$data <- H2_melt
+      removeNotification(id)
+    }),warning=function(war){},error=function(err){
+      removeNotification(id)
+      report_error(err)
+    }))
   })
   
   shapes_anova <- reactive({
@@ -834,70 +850,76 @@ server <- function(input, output){
   #***********************************************************************************************
   anova_ts_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova_ts,{
-    id <- showNotification(h3("Calculating variances..."), duration = NULL)
-    which_shape <- input$anova_ts_shape
-    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    
-    ext <- FALSE
-    if(length(des)==2){
-      ind_fmla <- paste0("(1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")")
-    }else{
-      ind_fmla <- paste(paste0("(1|",des,")"),collapse = "+")
-      ext <- TRUE
-    }
-
-    H2 <- c()
-    fmla <- as.formula(paste0("as.numeric(",which_shape,") ~ ",ind_fmla))
-    
-    ctab <- lapply(split(merged$data,merged$data$DAP),function(i) any(!apply(i[,des],2,function(j) length(unique(j))>1)))
-    for(day in as.numeric(as.character(names(ctab)[!unlist(ctab)]))){
-      dat <- na.omit(merged$data[merged$data$DAP == as.numeric(day),])
-      model <- lmer(fmla,data = dat)
-      re<- VarCorr(model)
-      res<-attr(VarCorr(model), "sc")^2
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Temporal Anova"
+      id <- showNotification(h3("Calculating variances..."), duration = NULL)
+      which_shape <- input$anova_ts_shape
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      
+      ext <- FALSE
+      if(length(des)==2){
+        ind_fmla <- paste0("(1|",des[1],")+(1|",des[2],")+(1|",des[1],":",des[2],")")
+      }else{
+        ind_fmla <- paste(paste0("(1|",des,")"),collapse = "+")
+        ext <- TRUE
+      }
+      
+      H2 <- c()
+      fmla <- as.formula(paste0("as.numeric(",which_shape,") ~ ",ind_fmla))
+      
+      ctab <- lapply(split(merged$data,merged$data$DAP),function(i) any(!apply(i[,des],2,function(j) length(unique(j))>1)))
+      for(day in as.numeric(as.character(names(ctab)[!unlist(ctab)]))){
+        dat <- na.omit(merged$data[merged$data$DAP == as.numeric(day),])
+        model <- lmer(fmla,data = dat)
+        re<- VarCorr(model)
+        res<-attr(VarCorr(model), "sc")^2
+        
+        if(!ext){
+          interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
+          des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
+          des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
+          
+          tot.var<-sum(as.numeric(re),res)
+          unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+          
+          h2 <- c((des1.var/tot.var),
+            (des2.var/tot.var),
+            (interaction.var/tot.var),
+            unexp,
+            day)
+          H2 <- rbind(H2,h2) 
+        }else{
+          var <- lapply(des,function(i){as.numeric(attr(re[[i]],"stddev"))^2})
+          
+          tot.var <- sum(as.numeric(re),res)
+          unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
+          
+          h2 <- c(unlist(var)/tot.var,unexp,day)
+          H2 <- rbind(H2,h2)
+        }
+      }
+      H2 <- data.frame(H2)
+      rownames(H2) <- NULL
+      if(!ext){
+        colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Day")
+      }else{
+        colnames(H2) <- c(des,"Unexplained","Day")
+      }
+      
+      H2_melt <- melt(H2,id=c("Day"))
       
       if(!ext){
-        interaction.var <- as.numeric(attr(re[[which(str_detect(names(re),":"))]],"stddev"))^2
-        des1.var <- as.numeric(attr(re[[des[1]]],"stddev"))^2
-        des2.var <- as.numeric(attr(re[[des[2]]],"stddev"))^2
-        
-        tot.var<-sum(as.numeric(re),res)
-        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
-        
-        h2 <- c((des1.var/tot.var),
-          (des2.var/tot.var),
-          (interaction.var/tot.var),
-          unexp,
-          day)
-        H2 <- rbind(H2,h2) 
+        H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
       }else{
-        var <- lapply(des,function(i){as.numeric(attr(re[[i]],"stddev"))^2})
-        
-        tot.var <- sum(as.numeric(re),res)
-        unexp <- 1-sum(as.numeric(re))/sum(as.numeric(re),res)
-        
-        h2 <- c(unlist(var)/tot.var,unexp,day)
-        H2 <- rbind(H2,h2)
+        H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des))
       }
-    }
-    H2 <- data.frame(H2)
-    rownames(H2) <- NULL
-    if(!ext){
-      colnames(H2) <- c(des[1],des[2],"Interaction","Unexplained","Day")
-    }else{
-      colnames(H2) <- c(des,"Unexplained","Day")
-    }
-
-    H2_melt <- melt(H2,id=c("Day"))
-    
-    if(!ext){
-      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des[1],des[2],"Interaction"))
-    }else{
-      H2_melt$variable <- ordered(H2_melt$variable,levels=c("Unexplained",des))
-    }
-    H2_melt$shape <- which_shape
-    anova_ts_dat$data <- H2_melt
-    removeNotification(id)
+      H2_melt$shape <- which_shape
+      anova_ts_dat$data <- H2_melt
+      removeNotification(id)
+    }),warning=function(war){},error=function(err){
+      removeNotification(id)
+      report_error(err)
+    }))
   })
   
   anova_ts <- reactive({
@@ -1087,30 +1109,7 @@ server <- function(input, output){
     })))
     return(test)
   }
-  
-  makePCA <- function(data,day,start,stop,color_by){
-    sub <- data[data$DAP==day,]
-    channel.pca <- PCA(sub[,start:stop],graph = F)
-    pca_df <- data.frame("Treatment"=as.character(sub[,color_by]),
-                         "PC1"=channel.pca$ind$coord[,1],
-                         "PC2"=channel.pca$ind$coord[,2])
-    varexp <- signif(c(channel.pca$eig[1,2],channel.pca$eig[2,2]),4)
-    
-    p <- ggplot(data=pca_df, aes(PC1,PC2))+
-      geom_point(data=aggregate(cbind(PC1,PC2)~Treatment,pca_df,mean),aes(color=Treatment),size=5)+
-      stat_ellipse(aes(fill=Treatment,color=Treatment),geom = "polygon",alpha=0.25)+
-      xlab(paste("PC1 (",varexp[1],"%)",sep = ""))+
-      ylab(paste("PC2 (",varexp[2],"%)",sep = ""))+
-      geom_vline(xintercept = 0,linetype="dashed")+
-      geom_hline(yintercept = 0,linetype="dashed")+
-      theme_minimal()+
-      theme(legend.title=element_blank())+
-      theme(axis.text = element_text(size = 18),
-            axis.title= element_text(size = 24))+
-      theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))
-    p
-  }
-  
+
   
   #***********************************************************************************************
   # VIS box
@@ -1186,32 +1185,39 @@ server <- function(input, output){
   },{enable("make_vis_caps")})
   
   observeEvent(input$make_vis_caps,{
-    disable("make_vis_caps")
-    id <- showNotification(h3("Subsetting VIS data..."), duration = NULL)
-    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
-    sub <- sub[which(rowSums(sub[,2:181])!=0),]
-    y <- sub[,2:181]
-    y <- floor(y[,2:ncol(y)])
-    y <- y[,which(colSums(y)!=0)]
-    x <- setNames(data.frame(sub[,des]),des)
-    if(length(des)==1){
-      form <- as.formula(paste0("y ~ ",input$vis_caps_main))
-    }else if(length(des)>1){
-      form <- as.formula(paste0("y ~ ",input$vis_caps_main,"+Condition(",paste0(vis_not_main$data,collapse="*"),")",collapse = ""))
-    }
-    removeNotification(id)
-    
-    id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
-    cap <- capscale(form,x,dist=input$vis_caps_dist,sqrt.dist = T)
-    removeNotification(id)
-    
-    id <- showNotification(h3("Done!"), duration = NULL)
-    test <- data.frame(summary(cap)$sites)
-    test <- cbind(test,x)
-    vis_caps$data <- test
-    vis_ready_checker$data <- TRUE
-    removeNotification(id)
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "VIS CAPS"
+      disable("make_vis_caps")
+      id <- showNotification(h3("Subsetting VIS data..."), duration = NULL)
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
+      sub <- sub[which(rowSums(sub[,2:181])!=0),]
+      y <- sub[,2:181]
+      y <- floor(y[,2:ncol(y)])
+      y <- y[,which(colSums(y)!=0)]
+      x <- setNames(data.frame(sub[,des]),des)
+      if(length(des)==1){
+        form <- as.formula(paste0("y ~ ",input$vis_caps_main))
+      }else if(length(des)>1){
+        form <- as.formula(paste0("y ~ ",input$vis_caps_main,"+Condition(",paste0(vis_not_main$data,collapse="*"),")",collapse = ""))
+      }
+      removeNotification(id)
+      
+      id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
+      cap <- capscale(form,x,dist=input$vis_caps_dist,sqrt.dist = T)
+      removeNotification(id)
+      
+      id <- showNotification(h3("Done!"), duration = NULL)
+      test <- data.frame(summary(cap)$sites)
+      test <- cbind(test,x)
+      vis_caps$data <- test
+      vis_ready_checker$data <- TRUE
+      removeNotification(id)
+    }),warning=function(war){},error=function(err){
+      removeNotification(id)
+      report_error(err)
+    }))
+
   })
 
   vis_caps_plot <- reactive({
@@ -1256,30 +1262,37 @@ server <- function(input, output){
  })
   
   vis_joyplot <- reactive({
-    sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
-    test_avg <- hist_avg(sub,start = 2,stop = 181)
-    test_sd <- hist_sd(sub,start = 2,stop = 181)
-    test_avg <- data.frame(melt(t(test_avg)))
-    test_avg$sd <- data.frame(melt(t(test_sd)))[,3]
-    test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
-    test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
-    test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
+    #res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "VIS Joyplot"
+      sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
+      test_avg <- hist_avg(sub,start = 2,stop = 181)
+      test_sd <- hist_sd(sub,start = 2,stop = 181)
+      test_avg <- data.frame(melt(t(test_avg)))
+      test_avg$sd <- data.frame(melt(t(test_sd)))[,3]
+      test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
+      test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
+      test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
+      
+      ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
+        facet_grid(~meta2)+
+        geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
+        scale_x_continuous(breaks = c(0,90,180,270,360))+
+        ylab("")+
+        xlab("Hue Channel")+
+        theme_ridges(grid=T,center_axis_labels = T)+
+        theme(legend.position='none')+
+        theme(axis.text = element_text(size = 12),
+          axis.title= element_text(size = 18))+
+        theme(plot.title = element_text(hjust = 0.5),
+          strip.background=element_rect(fill="gray50"),
+          strip.text.x=element_text(size=14,color="white"),
+          strip.text.y=element_text(size=14,color="white"))+
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    # }),warning=function(war){},error=function(err){
+    #   removeNotification(id)
+    #   report_error(err)
+    # }))
     
-    ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
-      facet_grid(~meta2)+
-      geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
-      scale_x_continuous(breaks = c(0,90,180,270,360))+
-      ylab("")+
-      xlab("Hue Channel")+
-      theme_ridges(grid=T,center_axis_labels = T)+
-      theme(legend.position='none')+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))+
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
   
   output$vis_joyplot <- renderPlot({
@@ -1378,32 +1391,38 @@ server <- function(input, output){
   },{enable("make_nir_caps")})
   
   observeEvent(input$make_nir_caps,{
-    disable("make_nir_caps")
-    id <- showNotification(h3("Subsetting NIR data..."), duration = NULL)
-    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    sub <- nir$data[nir$data$DAP == input$nir_caps_which_day,]
-    sub <- sub[which(rowSums(sub[,2:256])!=0),]
-    y <- sub[,2:256]
-    y <- floor(y[,2:ncol(y)])
-    y <- y[,which(colSums(y)!=0)]
-    x <- setNames(data.frame(sub[,des]),des)
-    if(length(des)==1){
-      form <- as.formula(paste0("y ~ ",input$nir_caps_main))
-    }else if(length(des)>1){
-      form <- as.formula(paste0("y ~ ",input$nir_caps_main,"+Condition(",paste0(nir_not_main$data,collapse="*"),")",collapse = ""))
-    }
-    removeNotification(id)
-    
-    id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
-    cap <- capscale(form,x,dist=input$nir_caps_dist,sqrt.dist = T)
-    removeNotification(id)
-    
-    id <- showNotification(h3("Done!"), duration = NULL)
-    test <- data.frame(summary(cap)$sites)
-    test <- cbind(test,x)
-    nir_caps$data <- test
-    nir_ready_checker$data <- TRUE
-    removeNotification(id)
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "NIR CAPS"
+      disable("make_nir_caps")
+      id <- showNotification(h3("Subsetting NIR data..."), duration = NULL)
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      sub <- nir$data[nir$data$DAP == input$nir_caps_which_day,]
+      sub <- sub[which(rowSums(sub[,2:256])!=0),]
+      y <- sub[,2:256]
+      y <- floor(y[,2:ncol(y)])
+      y <- y[,which(colSums(y)!=0)]
+      x <- setNames(data.frame(sub[,des]),des)
+      if(length(des)==1){
+        form <- as.formula(paste0("y ~ ",input$nir_caps_main))
+      }else if(length(des)>1){
+        form <- as.formula(paste0("y ~ ",input$nir_caps_main,"+Condition(",paste0(nir_not_main$data,collapse="*"),")",collapse = ""))
+      }
+      removeNotification(id)
+      
+      id <- showNotification(h3("Calculating CAPS..."), duration = NULL)
+      cap <- capscale(form,x,dist=input$nir_caps_dist,sqrt.dist = T)
+      removeNotification(id)
+      
+      id <- showNotification(h3("Done!"), duration = NULL)
+      test <- data.frame(summary(cap)$sites)
+      test <- cbind(test,x)
+      nir_caps$data <- test
+      nir_ready_checker$data <- TRUE
+      removeNotification(id)
+    }),warning=function(war){},error=function(err){
+      removeNotification(id)
+      report_error(err)
+    }))
   })
   
   nir_caps_plot <- reactive({
@@ -1629,51 +1648,57 @@ server <- function(input, output){
     }
   }) 
   output$oof_plot <- renderPlot({
-    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(from$data == "phenocv"){
-      dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$oof == 1)){
-        sub <- i[i$oof == 1,]
-        sub[order(sub$DAP),][1,]
+    #res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Survival Plot"
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      if(from$data == "phenocv"){
+        dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$oof == 1)){
+          sub <- i[i$oof == 1,]
+          sub[order(sub$DAP),][1,]
+        }else{
+          i[i$DAP == max(i$DAP),][1,]
+        }))
+        dat$srv <- with(dat,Surv(time=DAP,event=oof))
       }else{
-        i[i$DAP == max(i$DAP),][1,]
-      }))
-      dat$srv <- with(dat,Surv(time=DAP,event=oof))
-    }else{
-      dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$in_bounds=="False")){
-        sub <- i[i$in_bounds=="False",]
-        sub[order(sub$DAP),][1,]
+        dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$in_bounds=="False")){
+          sub <- i[i$in_bounds=="False",]
+          sub[order(sub$DAP),][1,]
+        }else{
+          i[i$DAP == max(i$DAP),][1,]
+        }))
+        dat$srv <- with(dat,Surv(time=DAP,event=(in_bounds=="False")))
+      }
+      fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
+      mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):max(merged$data$DAP))
+      mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
+      mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
+      
+      p <- ggplot(mod_df,aes(DAP,surv))
+      if(length(des)>3){
+        ggplot()
+      }else if(length(des)==3){
+        p <- p+facet_grid(as.formula(paste0(des[1],"~",des[2])))+
+          geom_line(aes_string(color=des[3]))
+      }else if(length(des)==2){
+        p <- p+facet_grid(as.formula(paste0("~",des[1])))+
+          geom_line(aes_string(color=des[2]))
       }else{
-        i[i$DAP == max(i$DAP),][1,]
-      }))
-      dat$srv <- with(dat,Surv(time=DAP,event=(in_bounds=="False")))
-    }
-    fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
-    mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):max(merged$data$DAP))
-    mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
-    mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
-
-    p <- ggplot(mod_df,aes(DAP,surv))
-    if(length(des)>3){
-      ggplot()
-    }else if(length(des)==3){
-      p <- p+facet_grid(as.formula(paste0(des[1],"~",des[2])))+
-             geom_line(aes_string(color=des[3]))
-    }else if(length(des)==2){
-      p <- p+facet_grid(as.formula(paste0("~",des[1])))+
-        geom_line(aes_string(color=des[2]))
-    }else{
-      p <- p+geom_line(aes_string(color=des[1]))
-    }
-    
-    p <- p+ylab("Out Of Frame Risk")+
-      scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
-      theme_light()+
-      theme(axis.text = element_text(size = 14),
-            axis.title= element_text(size = 18))+ 
-      theme(strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
-    p
+        p <- p+geom_line(aes_string(color=des[1]))
+      }
+      
+      p <- p+ylab("Out Of Frame Risk")+
+        scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
+        theme_light()+
+        theme(axis.text = element_text(size = 14),
+          axis.title= element_text(size = 18))+ 
+        theme(strip.background=element_rect(fill="gray50"),
+          strip.text.x=element_text(size=14,color="white"),
+          strip.text.y=element_text(size=14,color="white"))
+      p
+    # }),warning=function(war){},error=function(err){
+    #   removeNotification(id)
+    #   report_error(err)
+    # }))
   })
 }
 
