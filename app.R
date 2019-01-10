@@ -511,6 +511,7 @@ server <- function(input, output){
       dbDisconnect(conn)
     }),warning=function(war){},error=function(err){
       removeNotification(id)
+      dbDisconnect(conn)
       locs <- extractStackTrace(conditionStackTrace(err))$loc
       loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
       showModal(modalDialog(
