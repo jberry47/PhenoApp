@@ -271,7 +271,7 @@ server <- function(input, output){
   imp_error_step <- reactiveValues(data=NULL)
 
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
     from$data <- "phenocv"
     res <- try(withCallingHandlers(withLogErrors({
       imp_error_step$data <- "Reading design file"
@@ -376,128 +376,150 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
     from$data <- "plantcv"
-    id <- showNotification(h3("Connecting to db..."), duration = NULL)
-    db <- input$plantcv_sql_path$datapath
-    drv <- dbDriver("SQLite")
-    conn <- dbConnect(drv, dbname = db)
-    removeNotification(id)
-    
-    id <- showNotification(h3("Reading design file..."), duration = NULL)
-    assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
-    assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
-    design$data <- assoc
-    removeNotification(id)
-    
-    id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
-    img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
-    img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
-    colnames(img_to_barcode)[3] <- "Barcodes"
-    snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
-    snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
-    removeNotification(id)
-    
-    id <- showNotification(h3("Querying db for shapes data..."), duration = NULL)
-    meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
-    shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
-    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
-    shapes.df <- shapes.df[shapes.df$imgtype == "VIS",]
-    shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
-    removeNotification(id)
-    
-    id <- showNotification(h3("Joining design file..."), duration = NULL)
-    colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
-    sv_shapes <- join(shapes.df,assoc_empty,by="Barcodes")
-    sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
-    removeNotification(id)
-    
-    id <- showNotification(h3("Adding time columns..."), duration = NULL)
-    sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
-    beg <- min(sv_shapes$timestamp)
-    sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
-    sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
-    sv_shapes$timestamp <- as.character(sv_shapes$timestamp)
-    removeNotification(id)
-    
-    id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-    empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
-    sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
-    colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
-    sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN
-    removeNotification(id)
-    
-    #VIS data organization
-    id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
-    vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
-    if(nrow(vis.df)!= 0){
-      colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
-      vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Connecting to db"
+      id <- showNotification(h3("Connecting to db..."), duration = NULL)
+      db <- input$plantcv_sql_path$datapath
+      drv <- dbDriver("SQLite")
+      conn <- dbConnect(drv, dbname = db)
+      removeNotification(id)
+
+      imp_error_step$data <- "Reading design file"
+      id <- showNotification(h3("Reading design file..."), duration = NULL)
+      assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
+      assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
+      design$data <- assoc
       removeNotification(id)
       
-      id <- showNotification(h3("Joining with design..."), duration = NULL)
-      vis.df <- join(vis.df,assoc_empty,by="Barcodes")
-      vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
+      imp_error_step$data <- "Reading snapshot file"
+      id <- showNotification(h3("Reading snapshot file..."), duration = NULL)
+      img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+      img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
+      colnames(img_to_barcode)[3] <- "Barcodes"
+      snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
+      snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
       removeNotification(id)
       
+      imp_error_step$data <- "Querying db for shapes data"
+      id <- showNotification(h3("Querying db for shapes data..."), duration = NULL)
+      meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
+      shapes.df <- dbGetQuery(conn = conn,'SELECT * FROM metadata NATURAL JOIN features')
+      colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
+      shapes.df <- shapes.df[shapes.df$imgtype == "VIS",]
+      shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
+      removeNotification(id)
+      
+      imp_error_step$data <- "Joining design file"
+      id <- showNotification(h3("Joining design file..."), duration = NULL)
+      colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
+      sv_shapes <- join(shapes.df,assoc_empty,by="Barcodes")
+      sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
+      removeNotification(id)
+      
+      imp_error_step$data <- "Adding time columns"
       id <- showNotification(h3("Adding time columns..."), duration = NULL)
-      vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
-      vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
-      vis.df$hour <- lubridate::hour(vis.df$timestamp)
-      vis.df$timestamp <- as.character(vis.df$timestamp)
+      sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
+      beg <- min(sv_shapes$timestamp)
+      sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+      sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
+      sv_shapes$timestamp <- as.character(sv_shapes$timestamp)
       removeNotification(id)
       
+      imp_error_step$data <- "Removing empty pots"
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
+      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+      sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
+      colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
+      sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN
       removeNotification(id)
       
-      id <- showNotification(h3("Merging shapes data..."), duration = NULL)
-      vis_shapes <- join(vis.df, sv_shapes, by = c("image_id","zoom","camera","cartag","exposure","frame","gain","id","imgtype","lifter","Line_name","measurementlabel","other","run_id","treatment","Treatment","Barcodes","timestamp","hour","DAP"))
-      sv_shapes <- vis_shapes[,c(colnames(sv_shapes))]
-      vis$data <- vis_shapes[,c(colnames(vis.df))]
-      removeNotification(id)
-    }else{
-      removeNotification(id)
-      id <- showNotification(h3("No VIS data detected"), duration = 1)
-      vis$data <- NULL
-    }
-    
-    #NIR data organization
-    id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
-    nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
-    if(nrow(nir.df)!= 0){
-      colnames(nir.df)[colnames(nir.df) == "plantbarcode"] <- "Barcodes"
-      nir.df <- cbind(data.frame("meta"=rep("meta",nrow(nir.df))),data.frame(do.call(rbind,lapply(strsplit(nir.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),nir.df[,which(!(colnames(nir.df)%in%(c("bin_values","values"))))])
-      removeNotification(id)
+      #VIS data organization
+      imp_error_step$data <- "Querying db for VIS data"
+      id <- showNotification(h3("Querying db for VIS data..."), duration = NULL)
+      vis.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "hue"')
+      if(nrow(vis.df)!= 0){
+        colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
+        vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
+        removeNotification(id)
+        
+        id <- showNotification(h3("Joining with design..."), duration = NULL)
+        vis.df <- join(vis.df,assoc_empty,by="Barcodes")
+        vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
+        removeNotification(id)
+        
+        id <- showNotification(h3("Adding time columns..."), duration = NULL)
+        vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
+        vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+        vis.df$hour <- lubridate::hour(vis.df$timestamp)
+        vis.df$timestamp <- as.character(vis.df$timestamp)
+        removeNotification(id)
+        
+        id <- showNotification(h3("Removing empty pots..."), duration = NULL)
+        vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
+        removeNotification(id)
+        
+        id <- showNotification(h3("Merging shapes data..."), duration = NULL)
+        vis_shapes <- join(vis.df, sv_shapes, by = c("image_id","zoom","camera","cartag","exposure","frame","gain","id","imgtype","lifter","Line_name","measurementlabel","other","run_id","treatment","Treatment","Barcodes","timestamp","hour","DAP"))
+        sv_shapes <- vis_shapes[,c(colnames(sv_shapes))]
+        vis$data <- vis_shapes[,c(colnames(vis.df))]
+        removeNotification(id)
+      }else{
+        removeNotification(id)
+        id <- showNotification(h3("No VIS data detected"), duration = 1)
+        vis$data <- NULL
+      }
       
-      id <- showNotification(h3("Joining with design..."), duration = NULL)
-      nir.df <- join(nir.df,assoc_empty,by="Barcodes")
-      nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
-      removeNotification(id)
+      #NIR data organization
+      imp_error_step$data <- "Querying db for NIR data"
+      id <- showNotification(h3("Querying db for NIR data..."), duration = NULL)
+      nir.df <- dbGetQuery(conn = conn, 'SELECT * FROM metadata NATURAL JOIN signal WHERE channel_name = "nir"')
+      if(nrow(nir.df)!= 0){
+        colnames(nir.df)[colnames(nir.df) == "plantbarcode"] <- "Barcodes"
+        nir.df <- cbind(data.frame("meta"=rep("meta",nrow(nir.df))),data.frame(do.call(rbind,lapply(strsplit(nir.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),nir.df[,which(!(colnames(nir.df)%in%(c("bin_values","values"))))])
+        removeNotification(id)
+        
+        id <- showNotification(h3("Joining with design..."), duration = NULL)
+        nir.df <- join(nir.df,assoc_empty,by="Barcodes")
+        nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
+        removeNotification(id)
+        
+        id <- showNotification(h3("Adding time columns..."), duration = NULL)
+        nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
+        nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+        nir.df$hour <- lubridate::hour(nir.df$timestamp)
+        removeNotification(id)
+        
+        id <- showNotification(h3("Removing empty pots..."), duration = NULL)
+        nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
+        nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
+        nir$data <- nir.df
+        removeNotification(id)
+      }else{
+        removeNotification(id)
+        id <- showNotification(h3("No NIR data detected"), duration = 1)
+        nir$data <- NULL
+      }
       
-      id <- showNotification(h3("Adding time columns..."), duration = NULL)
-      nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
-      nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
-      nir.df$hour <- lubridate::hour(nir.df$timestamp)
-      removeNotification(id)
+      imp_error_step$data <- "Finalizing"
+      merged$data <- sv_shapes
+      shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
+      empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
       
-      id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
-      nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
-      nir$data <- nir.df
+      id <- showNotification(h3("Done!"), duration = 1)
+      dbDisconnect(conn)
+    }),warning=function(war){},error=function(err){
       removeNotification(id)
-    }else{
-      removeNotification(id)
-      id <- showNotification(h3("No NIR data detected"), duration = 1)
-      nir$data <- NULL
-    }
-    
-    merged$data <- sv_shapes
-    shapes$data <- merged$data[,colnames(merged$data)[colnames(merged$data) %in% c('image','image_id','area','hull_area','solidity','perimeter','width','height','longest_axis','center_of_mass_x','center_of_mass_y','hull_vertices','in_bounds','ellipse_center_x','ellipse_center_y','ellipse_major_axis','ellipse_minor_axis','ellipse_angle','ellipse_eccentricity','y_position','height_above_bound','height_below_bound','above_bound_area','percent_above_bound_area','below_bound_area','percent_below_bound_area')]]
-    empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
-    
-    id <- showNotification(h3("Done!"), duration = 1)
-    dbDisconnect(conn)
+      locs <- extractStackTrace(conditionStackTrace(err))$loc
+      loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
+      showModal(modalDialog(
+        p("Error in code block: ",tags$b(imp_error_step$data)),
+        p("Error caught: ",code(err)),
+        p("Line number ",as.numeric(loc_lines),": ",code(scan("app.R", '', skip = as.numeric(loc_lines)-1, nlines = 1, sep = '\n')))
+      ))
+    }))
+
   })
   
   #***********************************************************************************************
