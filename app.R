@@ -1137,6 +1137,7 @@ server <- function(input, output){
   })
   
   observeEvent({ 
+    input$vis_caps_main
     input$vis_caps_dist
     input$vis_caps_which_day
   },{enable("make_vis_caps")})
@@ -1146,7 +1147,8 @@ server <- function(input, output){
     id <- showNotification(h3("Subsetting VIS data..."), duration = NULL)
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     sub <- vis$data[vis$data$DAP == input$vis_caps_which_day,]
-    y <- sub[,str_detect(colnames(sub),"V")]
+    sub <- sub[which(rowSums(sub[,2:181])!=0),]
+    y <- sub[,2:181]
     y <- floor(y[,2:ncol(y)])
     y <- y[,which(colSums(y)!=0)]
     x <- setNames(data.frame(sub[,des]),des)
@@ -1327,6 +1329,7 @@ server <- function(input, output){
   })
   
   observeEvent({ 
+    input$nir_caps_main
     input$nir_caps_dist
     input$nir_caps_which_day
   },{enable("make_nir_caps")})
@@ -1631,6 +1634,8 @@ server <- function(input, output){
   })
   
   #ggsave("pheno4_ww_oof_risk.png",width=9.95,height=3.9,plot = p, dpi = 300)
+  
+  isolate({source("data/documentation.R",local=T)})
   
 }
 
