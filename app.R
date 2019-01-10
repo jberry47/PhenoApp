@@ -375,7 +375,6 @@ server <- function(input, output){
       removeNotification(id)
       report_error(err)
     }))
-
   })
   
   #Data import
@@ -518,7 +517,6 @@ server <- function(input, output){
       dbDisconnect(conn)
       report_error(err)
     }))
-
   })
   
   #***********************************************************************************************
@@ -1156,7 +1154,6 @@ server <- function(input, output){
   vis_ready_checker <- reactiveValues(data=FALSE)
   vis_caps <- reactiveValues(data=NULL)
   
-  
   output$vis_caps_partial <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==1){
@@ -1262,7 +1259,7 @@ server <- function(input, output){
  })
   
   vis_joyplot <- reactive({
-    #res <- try(withCallingHandlers(withLogErrors({
+    res <- try(withCallingHandlers(withLogErrors({
       imp_error_step$data <- "VIS Joyplot"
       sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
       test_avg <- hist_avg(sub,start = 2,stop = 181)
@@ -1272,7 +1269,11 @@ server <- function(input, output){
       test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
       test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
       test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
-      
+    }),warning=function(war){},error=function(err){
+       removeNotification(id)
+       report_error(err)
+    }))
+    if(class(res) != "try-error"){
       ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
         facet_grid(~meta2)+
         geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
@@ -1288,11 +1289,7 @@ server <- function(input, output){
           strip.text.x=element_text(size=14,color="white"),
           strip.text.y=element_text(size=14,color="white"))+
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
-    # }),warning=function(war){},error=function(err){
-    #   removeNotification(id)
-    #   report_error(err)
-    # }))
-    
+    }
   })
   
   output$vis_joyplot <- renderPlot({
@@ -1315,7 +1312,6 @@ server <- function(input, output){
   #***********************************************************************************************
   # NIR Analysis
   #***********************************************************************************************
-  
   output$nir_ui <- renderUI({
     if(!is.null(nir$data)){
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
@@ -1648,7 +1644,7 @@ server <- function(input, output){
     }
   }) 
   output$oof_plot <- renderPlot({
-    #res <- try(withCallingHandlers(withLogErrors({
+    res <- try(withCallingHandlers(withLogErrors({
       imp_error_step$data <- "Survival Plot"
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       if(from$data == "phenocv"){
@@ -1672,7 +1668,11 @@ server <- function(input, output){
       mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):max(merged$data$DAP))
       mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
       mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
-      
+    }),warning=function(war){},error=function(err){
+       removeNotification(id)
+       report_error(err)
+    }))
+    if(class(res)!="try-error"){
       p <- ggplot(mod_df,aes(DAP,surv))
       if(length(des)>3){
         ggplot()
@@ -1694,11 +1694,8 @@ server <- function(input, output){
         theme(strip.background=element_rect(fill="gray50"),
           strip.text.x=element_text(size=14,color="white"),
           strip.text.y=element_text(size=14,color="white"))
-      p
-    # }),warning=function(war){},error=function(err){
-    #   removeNotification(id)
-    #   report_error(err)
-    # }))
+      p 
+    }
   })
 }
 
