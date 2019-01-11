@@ -490,6 +490,7 @@ server <- function(input, output){
           if(!outlier_check$data){
             actionButton("detect_outliers","Detect Outliers")
             },
+          actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
           textOutput("outliers_model"),
           textOutput("num_outliers"),
           plotOutput("cooksd_plot"),
@@ -607,13 +608,15 @@ server <- function(input, output){
                      selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
                      actionButton("make_anova","Calculate ANOVA"),
                      withSpinner(plotOutput("anova_plot"), type = 5),
-                     uiOutput("download_shapes_anova_ui")
+                     uiOutput("download_shapes_anova_ui"),
+                     actionButton("anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             ),
             tabPanel(title="Temporal ANOVA",
               selectInput("anova_ts_shape","Which Shape",s,"area"),
               actionButton("make_anova_ts","Calculate ANOVA"),
               withSpinner(plotOutput("anova_ts_plot"), type = 5),
-              uiOutput("download_anova_ts_ui")
+              uiOutput("download_anova_ts_ui"),
+              actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             ),
             tabPanel(title="Trends",
                      selectInput("dep_var","Y-axis",s,"area"),
@@ -621,7 +624,8 @@ server <- function(input, output){
                      selectInput("facet_by","Facet By",des,des[2]),
                      textOutput("trends_collapsed_over"),
                      plotOutput("trends_plot"),
-                     uiOutput("download_shapes_trends_ui")
+                     uiOutput("download_shapes_trends_ui"),
+                     actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             ),
             tabPanel(title="Heatmap",
                      selectInput("h_color_by","Color By",s,"area"),
@@ -629,7 +633,8 @@ server <- function(input, output){
                      selectInput("h_facet_by","Facet By",des,des[2]),
                      textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
-                     uiOutput("download_shapes_heatmap_ui")
+                     uiOutput("download_shapes_heatmap_ui"),
+                     actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             ),
             tabPanel(title="Boxplots",
                      selectInput("box_dep_var","Y-axis",s,"area"),
@@ -638,7 +643,8 @@ server <- function(input, output){
                      selectInput("box_facet_by","Facet By",des,des[2]),
                      textOutput("box_collapsed_over"),
                      plotOutput("boxplot_shapes"),
-                     uiOutput("download_shapes_boxplot_ui")
+                     uiOutput("download_shapes_boxplot_ui"),
+                     actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             )
           )
       ) 
@@ -1094,7 +1100,8 @@ server <- function(input, output){
                             actionButton("make_vis_caps", "Go"),
                             textOutput("vis_caps_warning"),
                             br(),
-                            uiOutput("download_vis_caps")
+                            uiOutput("download_vis_caps"),
+                            actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      column(width=7,
                             plotOutput("vis_caps_out"), type = 5
@@ -1103,7 +1110,8 @@ server <- function(input, output){
             tabPanel(title="Joyplot",
                      selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
                      plotOutput("vis_joyplot"),
-                     uiOutput("download_vis_joyplot_ui")
+                     uiOutput("download_vis_joyplot_ui"),
+                     actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             )
           )
       ) 
@@ -1282,7 +1290,8 @@ server <- function(input, output){
                             actionButton("make_nir_caps", "Go"),
                             textOutput("nir_caps_warning"),
                             br(),
-                            uiOutput("download_nir_caps")
+                            uiOutput("download_nir_caps"),
+                            actionButton("nir_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      column(width=7,
                             withSpinner(plotOutput("nir_caps_out"), type = 5)
@@ -1295,7 +1304,8 @@ server <- function(input, output){
                      uiOutput("download_nir_heatmap_nofacet_ui"),
                      br(),
                      plotOutput("nir_heatmap_withfacet"),
-                     uiOutput("download_nir_heatmap_facet_ui")
+                     uiOutput("download_nir_heatmap_facet_ui"),
+                     actionButton("nir_heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             )
           )
       )
@@ -1493,7 +1503,8 @@ server <- function(input, output){
                      br(),
                      br(),
                      br(),
-                     downloadButton("iqv_download","Download Plot"),
+                     uiOutput("iqv_download_ui"),
+                     actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
                      br()
             ),
             tabPanel(title = "Water",
@@ -1550,6 +1561,12 @@ server <- function(input, output){
       ggsave(file,iqv(),device = "png",width = 5,height = 4,dpi = 300)
     }
   )
+  
+  output$iqv_download_ui <- renderUI({
+    if(!is.null(merged$data)){
+      downloadButton("iqv_download","Download Plot")
+    }
+  })
   
   output$no_det <- renderText({
     if(is.null(merged$data$det)){
