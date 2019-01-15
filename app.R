@@ -340,7 +340,7 @@ server <- function(input, output){
       
       imp_error_step$data <- "PhenoCV - Removing empty pots"
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+      empties <-names(which(lapply(split(sv_shapes,sv_shapes$Barcodes),function(i) all(i$area < 10))==T))
       empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
       sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
       sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN    
@@ -432,7 +432,7 @@ server <- function(input, output){
       
       imp_error_step$data <- "PlantCV - Removing empty pots"
       id <- showNotification(h3("Removing empty pots..."), duration = NULL)
-      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area == 0,"Barcodes"]
+      empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area <10,"Barcodes"]
       sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
       colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
       sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN
@@ -1574,8 +1574,13 @@ server <- function(input, output){
             ),
             tabPanel(title = "OOF",
                    textOutput("oof_warn"),
-                   plotOutput("oof_plot", height = 650),
+                   withSpinner(plotOutput("oof_plot", height = 650), type = 5),
                    uiOutput("oof_download_ui")
+            ),
+            tabPanel(title = "Emergence Rate",
+                    textOutput("er_warn"),
+                    withSpinner(plotOutput("er_plot", height = 650), type = 5),
+                    uiOutput("er_download_ui")
             )
           )
       )
@@ -1742,6 +1747,85 @@ server <- function(input, output){
   output$oof_download_ui <- renderUI({
     if(!is.null(merged$data)){
       downloadButton("oof_download","Download Plot")
+    }
+  })
+  
+#*************************************************************************************************
+# Emergence Rate (Germination/Survival)
+#*************************************************************************************************
+
+  output$er_warn <- renderText({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    if(length(des)>3){
+      "Design is too complex to show in one plot. Please subset your design file."
+    }
+  })   
+  
+  er_fig <- reactive({
+    res <- try(withCallingHandlers(withLogErrors({
+      imp_error_step$data <- "Emergence Plot"
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      #if(from$data == "phenocv"){
+        dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$area >= 10)){
+          sub <- i[i$area >= 10,]
+          sub[order(sub$DAP,decreasing=F),][1,]
+        }else{
+          sub <- i[i$DAP == max(i$DAP),][1,]
+          sub[,"DAP"] <- sub[,"DAP"]+1
+        }))
+        dat$srv <- with(dat,Surv(time=DAP,event=(!DAP==(max(DAP)+1))))
+        sv_shapes_list <- split(merged$data,merged$data$Barcodes)
+        adj_df <- data.frame("Barcodes"=names(sv_shapes_list),"adj"=as.numeric(lapply(sv_shapes_list,function(i) max(which(aggregate(data=i,area~DAP,FUN = "mean")[,2]<10))+3)))
+        adj_df[which(adj_df == -Inf,arr.ind = T)] <- max(merged$data$DAP) 
+        sv_shapes <- join(merged$data,adj_df,by="Barcodes")
+        #des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+        fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
+        mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(sv_shapes$DAP):(max(sv_shapes$DAP)+1))
+        mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
+        mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
+    }),warning=function(war){},error=function(err){
+        removeNotification(id)
+        report_errr(err)
+    }))
+    if(class(res)!="try-error"){
+      p <- ggplot(mod_df,aes(DAP,surv))
+      if(length(des)>3){
+        ggplot()
+      }else if(length(des)==3){
+        p <- p+facet_grid(as.formula(paste0(des[1],"~",des[2])))+
+          geom_line(aes_string(color=des[3]))
+      }else if(length(des)==2){
+        p <- p+facet_grid(as.formula(paste0("~",des[1])))+
+          geom_line(aes_string(color=des[2]))
+      }else{
+        p <- p+geom_line(aes_string(color=des[1]))
+      }
+      
+       p <- p+ylab("Emergence Risk")+
+         scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
+         theme_light()+
+         theme(axis.text = element_text(size = 14),
+               axis.title= element_text(size = 18))+ 
+         theme(strip.background=element_rect(fill="gray50"),
+               strip.text.x=element_text(size=14,color="white"),
+               strip.text.y=element_text(size=14,color="white"))
+       p
+    }
+    })
+  
+  output$er_plot <- renderPlot({
+    er_fig()
+  })
+  
+  output$er_download <- downloadHandler(
+    filename = function() {"er_plot.png"},
+    content=function(file){
+      ggsave(file,er_fig(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$er_download_ui <- renderUI({
+    if(!is.null(merged$data)){
+      downloadButton("er_download","Download Plot")
     }
   })
   
