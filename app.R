@@ -529,7 +529,7 @@ server <- function(input, output){
           if(!outlier_check$data){
             actionButton("detect_outliers","Detect Outliers")
             },
-          #actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
+          actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
           textOutput("outliers_model"),
           textOutput("num_outliers"),
           plotOutput("cooksd_plot"),
@@ -1828,6 +1828,8 @@ server <- function(input, output){
       downloadButton("er_download","Download Plot")
     }
   })
+  
+  isolate({source("data/documentation.R",local=T)})
   
 }
 
