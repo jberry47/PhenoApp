@@ -7,3 +7,30 @@ observeEvent(input$outlier_about, {
     footer = NULL
     ))
 })
+
+observeEvent(input$trends_about, {
+  showModal(modalDialog(
+    title = "Shapes Trends Plots",
+    p("This plot displays the changes over time in a selected 'shape' variable depending on the design elements selected under 'Color By' and 'Facet By'. If the imported data has less than 1000 observations, it will be fitted by local polynomial regression. If it has more than 1000 observations, it will be fitted by a generalized additive model."), 
+    easyClose = TRUE,
+    footer = NULL
+  ))
+})
+
+observeEvent(input$heatmap_about, {
+  showModal(modalDialog(
+    title = "Shapes Heatmap Plots",
+    p("The heatmap shows fluctuations over time in the chosen 'shape' variable under 'Color By' depending on the design elements selected for 'Group By' and 'Facet By'. The lighter the color, the higher the value for the chosen 'shape' variable."),
+    easyClose = TRUE,
+    footer = NULL
+  ))
+})
+
+# observeEvent(input$boxplot_about, {
+#   showModal(modalDialog(
+#     title = "Shapes Boxplot Plots",
+#     p("test"), 
+#     easyClose = TRUE,
+#     footer = NULL
+#   ))
+# })

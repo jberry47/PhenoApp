@@ -675,8 +675,9 @@ server <- function(input, output){
                      selectInput("facet_by","Facet By",des,des[2]),
                      textOutput("trends_collapsed_over"),
                      plotOutput("trends_plot"),
-                     uiOutput("download_shapes_trends_ui")
-                     #actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_shapes_trends_ui"),
+                     actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             ),
             tabPanel(title="Heatmap",
                      selectInput("h_color_by","Color By",s,"area"),
@@ -684,8 +685,9 @@ server <- function(input, output){
                      selectInput("h_facet_by","Facet By",des,des[2]),
                      textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
-                     uiOutput("download_shapes_heatmap_ui")
-                     #actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_shapes_heatmap_ui"),
+                     actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             ),
             tabPanel(title="Boxplots",
                      selectInput("box_dep_var","Y-axis",s,"area"),
@@ -1017,6 +1019,7 @@ server <- function(input, output){
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
     df <- aggregate(data=merged$data,fmla,FUN = "mean")
+    print(df)
     colnames(df)[ncol(df)] <- input$h_color_by
     ggplot(df,aes_string("DAP",input$h_group_by))+
       facet_grid(~eval(parse(text=input$h_facet_by)))+
