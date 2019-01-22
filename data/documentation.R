@@ -26,11 +26,11 @@ observeEvent(input$heatmap_about, {
   ))
 })
 
-# observeEvent(input$boxplot_about, {
-#   showModal(modalDialog(
-#     title = "Shapes Boxplot Plots",
-#     p("test"), 
-#     easyClose = TRUE,
-#     footer = NULL
-#   ))
-# })
+observeEvent(input$boxplot_about, {
+  showModal(modalDialog(
+    title = "Shapes Boxplot Plots",
+    p("The boxplots show fluctuations over time in the chosen 'shape' variable under 'Color By' depending on the design elements selected for 'Group By' and 'Facet By'. The analysis will only take the data from a particular day that can be specified under 'Which Day'. A histogram overlays the data in addition to the boxplot which is intended to show more detailed information about the spread of the data."),
+    easyClose = TRUE,
+    footer = NULL
+  ))
+})

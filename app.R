@@ -676,7 +676,7 @@ server <- function(input, output){
                      textOutput("trends_collapsed_over"),
                      plotOutput("trends_plot"),
                      div(id="container", uiOutput("download_shapes_trends_ui"),
-                     actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                        actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
             ),
             tabPanel(title="Heatmap",
@@ -686,7 +686,7 @@ server <- function(input, output){
                      textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
                      div(id="container", uiOutput("download_shapes_heatmap_ui"),
-                     actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                        actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
             ),
             tabPanel(title="Boxplots",
@@ -696,8 +696,9 @@ server <- function(input, output){
                      selectInput("box_facet_by","Facet By",des,des[2]),
                      textOutput("box_collapsed_over"),
                      plotOutput("boxplot_shapes"),
-                     uiOutput("download_shapes_boxplot_ui")
-                     #actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_shapes_boxplot_ui"),
+                        actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             )
           )
       ) 
