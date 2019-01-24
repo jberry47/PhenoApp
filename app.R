@@ -529,7 +529,7 @@ server <- function(input, output){
           if(!outlier_check$data){
             actionButton("detect_outliers","Detect Outliers")
             },
-          #actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
+          actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
           textOutput("outliers_model"),
           textOutput("num_outliers"),
           plotOutput("cooksd_plot"),
@@ -675,8 +675,9 @@ server <- function(input, output){
                      selectInput("facet_by","Facet By",des,des[2]),
                      textOutput("trends_collapsed_over"),
                      plotOutput("trends_plot"),
-                     uiOutput("download_shapes_trends_ui")
-                     #actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_shapes_trends_ui"),
+                        actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             ),
             tabPanel(title="Heatmap",
                      selectInput("h_color_by","Color By",s,"area"),
@@ -684,8 +685,9 @@ server <- function(input, output){
                      selectInput("h_facet_by","Facet By",des,des[2]),
                      textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
-                     uiOutput("download_shapes_heatmap_ui")
-                     #actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_shapes_heatmap_ui"),
+                        actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             ),
             tabPanel(title="Boxplots",
                      selectInput("box_dep_var","Y-axis",s,"area"),
@@ -694,8 +696,9 @@ server <- function(input, output){
                      selectInput("box_facet_by","Facet By",des,des[2]),
                      textOutput("box_collapsed_over"),
                      plotOutput("boxplot_shapes"),
-                     uiOutput("download_shapes_boxplot_ui")
-                     #actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_shapes_boxplot_ui"),
+                        actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             )
           )
       ) 
@@ -1017,6 +1020,7 @@ server <- function(input, output){
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
     df <- aggregate(data=merged$data,fmla,FUN = "mean")
+    print(df)
     colnames(df)[ncol(df)] <- input$h_color_by
     ggplot(df,aes_string("DAP",input$h_group_by))+
       facet_grid(~eval(parse(text=input$h_facet_by)))+
@@ -1138,10 +1142,10 @@ server <- function(input, output){
                                         selected = "euclidean"),
                             selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300),
                             actionButton("make_vis_caps", "Go"),
+                            #actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                             textOutput("vis_caps_warning"),
                             br(),
                             uiOutput("download_vis_caps")
-                            #actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      column(width=7,
                             plotOutput("vis_caps_out"), type = 5
@@ -1284,7 +1288,7 @@ server <- function(input, output){
     if(class(res) != "try-error"){
       ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
         facet_grid(~meta2)+
-        geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
+        geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5, scale = 1)+
         scale_x_continuous(breaks = c(0,90,180,270,360))+
         ylab("")+
         xlab("Hue Channel")+
@@ -1828,6 +1832,8 @@ server <- function(input, output){
       downloadButton("er_download","Download Plot")
     }
   })
+  
+  isolate({source("data/documentation.R",local=T)})
   
 }
 
