@@ -1142,10 +1142,10 @@ server <- function(input, output){
                                         selected = "euclidean"),
                             selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300),
                             actionButton("make_vis_caps", "Go"),
+                            #actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                             textOutput("vis_caps_warning"),
                             br(),
                             uiOutput("download_vis_caps")
-                            #actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      column(width=7,
                             plotOutput("vis_caps_out"), type = 5
@@ -1288,7 +1288,7 @@ server <- function(input, output){
     if(class(res) != "try-error"){
       ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
         facet_grid(~meta2)+
-        geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5)+
+        geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5, scale = 1)+
         scale_x_continuous(breaks = c(0,90,180,270,360))+
         ylab("")+
         xlab("Hue Channel")+

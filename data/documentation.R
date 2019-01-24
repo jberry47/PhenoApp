@@ -34,3 +34,21 @@ observeEvent(input$boxplot_about, {
     footer = NULL
   ))
 })
+
+# observeEvent(input$vis_caps_about, {
+#   showModal(modalDialogue(
+#     title = "Vis CAPS",
+#     p("test")
+#     easyClose = T,
+#     footer = NULL
+#   ))
+# })
+
+# observeEvent(input$vis_joyplot_about, {
+#   showModal(modalDialog(
+#     title = "Vis Joyplot",
+#     p("test"),
+#     easyClose = T,
+#     footer = NULL
+#   ))
+# })
