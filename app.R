@@ -1141,8 +1141,9 @@ server <- function(input, output){
                                         choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
                                         selected = "euclidean"),
                             selectInput("vis_caps_which_day","Which Day:",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width = 300),
-                            actionButton("make_vis_caps", "Go"),
-                            #actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                            div(id="container", actionButton("make_vis_caps", "Go"),
+                                 actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                             ),
                             textOutput("vis_caps_warning"),
                             br(),
                             uiOutput("download_vis_caps")
@@ -1565,8 +1566,10 @@ server <- function(input, output){
                      br(),
                      br(),
                      br(),
-                     uiOutput("iqv_download_ui"),
-                     #actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
+                     #uiOutput("iqv_download_ui"),
+                     #div(id="container", uiOutput("download_shapes_boxplot_ui"),
+                     #     actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     # ),
                      br()
             ),
             tabPanel(title = "Water",
@@ -1575,16 +1578,31 @@ server <- function(input, output){
                    selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180),
                    plotOutput("water_plot"),
                    uiOutput("water_download_ui")
+                   #uiOutput("iqv_download_ui"),
+                   #div(id="container", uiOutput("download_shapes_boxplot_ui"),
+                   #     actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                   # ),
+                   
             ),
             tabPanel(title = "OOF",
                    textOutput("oof_warn"),
                    withSpinner(plotOutput("oof_plot", height = 650), type = 5),
                    uiOutput("oof_download_ui")
+                   #uiOutput("iqv_download_ui"),
+                   #div(id="container", uiOutput("download_shapes_boxplot_ui"),
+                   #     actionButton("oof_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                   # ),
+                   
             ),
             tabPanel(title = "Emergence Rate",
                     textOutput("er_warn"),
                     withSpinner(plotOutput("er_plot", height = 650), type = 5),
                     uiOutput("er_download_ui")
+                    #uiOutput("iqv_download_ui"),
+                    #div(id="container", uiOutput("download_shapes_boxplot_ui"),
+                    #     actionButton("emerg_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                    # ),
+                    
             )
           )
       )
