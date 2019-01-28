@@ -35,14 +35,16 @@ observeEvent(input$boxplot_about, {
   ))
 })
 
-# observeEvent(input$vis_caps_about, {
-#   showModal(modalDialogue(
-#     title = "Vis CAPS",
-#     p("test")
-#     easyClose = T,
-#     footer = NULL
-#   ))
-# })
+observeEvent(input$vis_caps_about, {
+  showModal(modalDialog(
+    title = "Vis CAPS",
+    p("This figure shows the constrained analysis of principal coordinates (CAP) which is intended to show variation amongst one design variable while also accounting for the remaining design variables. If there are only two varaiables in the design file, the CAPs calculation will be reduced to the formula that is used to calculate PCAs."),
+    br(),
+    p("To prevent the application from being overloaded by calculations, the 'Go' button will be disabled when a calculation begins. It can be re-activated by changing the variable in 'Main effect', 'Distance Type', or 'Which Day'. The option to download the plot will appear once the calculation is complete."),
+    easyClose = T,
+    footer = NULL
+  ))
+})
 
 # observeEvent(input$vis_joyplot_about, {
 #   showModal(modalDialog(
@@ -52,3 +54,12 @@ observeEvent(input$boxplot_about, {
 #     footer = NULL
 #   ))
 # })
+
+ # observeEvent(input$iqv_about, {
+ #   showModal(modalDialog(
+ #     title = "Vis CAPS",
+ #     p("test"),
+ #     easyClose = T,
+ #     footer = NULL
+ #   ))
+ # })
