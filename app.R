@@ -20,6 +20,7 @@ library(survival)
 library(vegan)
 library(shinycssloaders)
 
+
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                     dashboardHeader(
                       title = tagList(
@@ -657,17 +658,19 @@ server <- function(input, output){
           tabsetPanel(
             tabPanel(title="Shapes ANOVA",
                      selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
-                     actionButton("make_anova","Calculate ANOVA"),
+                     div(id="container", actionButton("make_anova","Calculate ANOVA"),
+                         actionButton("shapes_anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     ),
                      withSpinner(plotOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
-                     #actionButton("anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             ),
             tabPanel(title="Temporal ANOVA",
-              selectInput("anova_ts_shape","Which Shape",s,"area"),
-              actionButton("make_anova_ts","Calculate ANOVA"),
-              withSpinner(plotOutput("anova_ts_plot"), type = 5),
-              uiOutput("download_anova_ts_ui")
-              #actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                    selectInput("anova_ts_shape","Which Shape",s,"area"),
+                    div(id="container", actionButton("make_anova_ts","Calculate ANOVA"),
+                        actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                    ),
+                    withSpinner(plotOutput("anova_ts_plot"), type = 5),
+                    uiOutput("download_anova_ts_ui")
             ),
             tabPanel(title="Trends",
                      selectInput("dep_var","Y-axis",s,"area"),
@@ -1020,7 +1023,6 @@ server <- function(input, output){
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
     fmla <- as.formula(paste("as.numeric(",input$h_color_by,")","~",paste(c(des,"DAP"),collapse = "+")))
     df <- aggregate(data=merged$data,fmla,FUN = "mean")
-    print(df)
     colnames(df)[ncol(df)] <- input$h_color_by
     ggplot(df,aes_string("DAP",input$h_group_by))+
       facet_grid(~eval(parse(text=input$h_facet_by)))+
@@ -1155,8 +1157,9 @@ server <- function(input, output){
             tabPanel(title="Joyplot",
                      selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
                      plotOutput("vis_joyplot"),
-                     uiOutput("download_vis_joyplot_ui")
-                     #actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_vis_joyplot_ui"),
+                        actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             )
           )
       ) 
@@ -1289,7 +1292,8 @@ server <- function(input, output){
     if(class(res) != "try-error"){
       ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
         facet_grid(~meta2)+
-        geom_density_ridges(stat = "identity", aes(colour=meta2),alpha=0.5, scale = 1)+
+        geom_density_ridges_gradient(stat = "identity", aes(fill=bin),alpha=0.5, scale = 1)+
+        scale_fill_gradientn(colors=hue_pal(l=65)(180))+
         scale_x_continuous(breaks = c(0,90,180,270,360))+
         ylab("")+
         xlab("Hue Channel")+
@@ -1299,7 +1303,7 @@ server <- function(input, output){
           axis.title= element_text(size = 18))+
         theme(plot.title = element_text(hjust = 0.5),
           strip.background=element_rect(fill="gray50"),
-          strip.text.x=element_text(size=14,color="white"),
+          strip.text.x=element_text(size=12,color="white"),
           strip.text.y=element_text(size=14,color="white"))+
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     }
@@ -1344,11 +1348,12 @@ server <- function(input, output){
                                         choices = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis"),
                                         selected = "euclidean"),
                             selectInput("nir_caps_which_day","Which Day:",sort(unique(nir$data$DAP)),max(unique(nir$data$DAP,na.rm = T)),width = 300),
-                            actionButton("make_nir_caps", "Go"),
+                            div(id="container", actionButton("make_nir_caps", "Go"),
+                               actionButton("nir_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                            ),
                             textOutput("nir_caps_warning"),
                             br(),
                             uiOutput("download_nir_caps")
-                            #actionButton("nir_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      column(width=7,
                             withSpinner(plotOutput("nir_caps_out"), type = 5)
@@ -1358,11 +1363,14 @@ server <- function(input, output){
                      selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
                      selectInput("nir_collapse_by", "Collapse By",des,des[1]),
                      plotOutput("nir_heatmap_nofacet"),
-                     uiOutput("download_nir_heatmap_nofacet_ui"),
+                     div(id="container", uiOutput("download_nir_heatmap_nofacet_ui"),
+                         actionButton("nir_heatmap_nofacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     ),
                      br(),
                      plotOutput("nir_heatmap_withfacet"),
-                     uiOutput("download_nir_heatmap_facet_ui")
-                     #actionButton("nir_heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     div(id="container", uiOutput("download_nir_heatmap_facet_ui"),
+                        actionButton("nir_heatmap_withfacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
             )
           )
       )
@@ -1555,10 +1563,10 @@ server <- function(input, output){
             tabPanel(title = "Image Quality",
                      br(),
                      textOutput("no_det"),       
-                     column(6, 
+                     column(4, 
                             numericInput("iqv_ylim_up", "Upper y-axis limit:", value = 10, width = 180)
                      ),
-                     column(6, 
+                     column(4, 
                             numericInput("iqv_ylim_low", "Lower y-axis limit:", value = -100, width= 180)
                      ),
                      br(),
@@ -1566,10 +1574,9 @@ server <- function(input, output){
                      br(),
                      br(),
                      br(),
-                     #uiOutput("iqv_download_ui"),
-                     #div(id="container", uiOutput("download_shapes_boxplot_ui"),
-                     #     actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
-                     # ),
+                     div(id="container", uiOutput("iqv_download_ui"),
+                          actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                      ),
                      br()
             ),
             tabPanel(title = "Water",
@@ -1577,31 +1584,25 @@ server <- function(input, output){
                    selectInput("water_color_by", "Color By:", des, des[2], width = 180),
                    selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180),
                    plotOutput("water_plot"),
-                   uiOutput("water_download_ui")
-                   #uiOutput("iqv_download_ui"),
-                   #div(id="container", uiOutput("download_shapes_boxplot_ui"),
-                   #     actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
-                   # ),
+                   div(id="container", uiOutput("water_download_ui"),
+                       actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                   )
                    
             ),
             tabPanel(title = "OOF",
                    textOutput("oof_warn"),
                    withSpinner(plotOutput("oof_plot", height = 650), type = 5),
-                   uiOutput("oof_download_ui")
-                   #uiOutput("iqv_download_ui"),
-                   #div(id="container", uiOutput("download_shapes_boxplot_ui"),
-                   #     actionButton("oof_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
-                   # ),
+                   div(id="container", uiOutput("oof_download_ui"),
+                       actionButton("oof_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                   )
                    
             ),
             tabPanel(title = "Emergence Rate",
                     textOutput("er_warn"),
                     withSpinner(plotOutput("er_plot", height = 650), type = 5),
-                    uiOutput("er_download_ui")
-                    #uiOutput("iqv_download_ui"),
-                    #div(id="container", uiOutput("download_shapes_boxplot_ui"),
-                    #     actionButton("emerg_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
-                    # ),
+                    div(id="container", uiOutput("er_download_ui"),
+                        actionButton("er_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                    )
                     
             )
           )
