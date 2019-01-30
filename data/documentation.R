@@ -56,7 +56,9 @@ observeEvent(input$boxplot_about, {
 observeEvent(input$vis_caps_about, {
   showModal(modalDialog(
     title = "Vis CAPS",
-    p("This figure shows the constrained analysis of principal coordinates (CAP) which is intended to show variation amongst one design variable while also accounting for the remaining design variables. If there are only two varaiables in the design file, the CAPs calculation will be reduced to the formula that is used to calculate PCAs."),
+    p("This figure shows the constrained analysis of principal coordinates (CAP) which is intended to show variation amongst one design variable while also accounting for the remaining design variables. If there are only two varaiables in the design file, the CAPs calculation will be reduced to the formula that is used to calculate PCAs. "),
+    br(),
+    p("Before the analysis begins, all rows and columns which contain only values of 0 are removed from the Color dataset."),
     br(),
     p("To prevent the application from being overloaded by calculations, the 'Go' button will be disabled when a calculation begins. It can be re-activated by changing the variable in 'Main effect', 'Distance Type', or 'Which Day'. The option to download the plot will appear once the calculation is complete."),
     easyClose = T,
@@ -95,6 +97,8 @@ observeEvent(input$nir_caps_about, {
   showModal(modalDialog(
     title = "Nir CAPS",
     p("This figure shows the constrained analysis of principal coordinates (CAP) which is intended to show variation amongst one design variable while also accounting for the remaining design variables. If there are only two varaiables in the design file, the CAPs calculation will be reduced to the formula that is used to calculate PCAs."),
+    br(),
+    p("Before the analysis begins, all rows and columns which contain only values of 0 are removed from the NIR dataset."),
     br(),
     p("To prevent the application from being overloaded by calculations, the 'Go' button will be disabled when a calculation begins. It can be re-activated by changing the variable in 'Main effect', 'Distance Type', or 'Which Day'. The option to download the plot will appear once the calculation is complete."),
     easyClose = T,
