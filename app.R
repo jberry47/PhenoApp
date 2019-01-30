@@ -1177,7 +1177,7 @@ server <- function(input, output){
                         selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
                      ),
                      column(width = 4,
-                         sliderInput("hue_range","HUE Degree Range", 0, 180, c(0,150), 1)   
+                         sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
                      ),
                      plotOutput("vis_joyplot"),
                      br(),
@@ -1321,12 +1321,13 @@ server <- function(input, output){
       ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
         facet_grid(~meta2)+
         geom_density_ridges_gradient(stat = "identity", aes(fill=bin),alpha=0.5, scale = 1)+
-        scale_fill_gradientn(colors=hue_pal(l=65)(180)[input$hue_range[1]:input$hue_range[2]])+
+        scale_fill_gradientn(colors=hue_pal(l=65)(360))+
         scale_x_continuous(limits=c(input$hue_range[1],input$hue_range[2]),oob = rescale_none)+
         scale_y_discrete(expand = c(0.01, 0)) +
         ylab("")+
         xlab("Hue Channel")+
-        theme_ridges(grid=T,center_axis_labels = T)+
+        #theme_ridges(grid=T,center_axis_labels = T)+
+        theme_light()+
         theme(legend.position='none')+
         theme(axis.text = element_text(size = 12),
           axis.title= element_text(size = 18))+
