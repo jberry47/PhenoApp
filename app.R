@@ -245,7 +245,6 @@ server <- function(input, output){
   #***********************************************************************************************
   output$phenocv_go_ui <- renderUI({
     b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name,input$phenocv_nir_file$name)
-    #b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name)
     if((input$pheno_nir_q == "Yes" & length(b) == 5)|(input$pheno_nir_q == "No" & length(b) == 4)){
       actionButton("phenocv_merge","Merge Data")
     }
@@ -1326,7 +1325,6 @@ server <- function(input, output){
         scale_y_discrete(expand = c(0.01, 0)) +
         ylab("")+
         xlab("Hue Channel")+
-        #theme_ridges(grid=T,center_axis_labels = T)+
         theme_light()+
         theme(legend.position='none')+
         theme(axis.text = element_text(size = 12),
@@ -1579,7 +1577,7 @@ server <- function(input, output){
   })
   
   #***********************************************************************************************
-  # "Summary" Box
+  # Summary Box
   #***********************************************************************************************
   output$summary_ui <- renderUI({
     if(!is.null(snapshot$data)){
