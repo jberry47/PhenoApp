@@ -146,7 +146,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                         tabItem(tabName = "get_started",
                                 box(width=10,title = "Merging Files",solidHeader = T,status = 'success',collapsible = TRUE,
                                     h5("How many days before the first day of imaging were the plants planted?"),
-                                    textInput("dap_offset", "DAP Offset", value = 2,width=80),
+                                    numericInput("dap_offset", "DAP Offset", value=2,width=80),
                                     br(),
                                     tabsetPanel(
                                       tabPanel(title="PhenotyperCV",
@@ -1130,6 +1130,7 @@ server <- function(input, output){
       box(width=10,title = "VIS Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           tabsetPanel(
             tabPanel("CAPS",
+                     br(),
                      column(width=4,
                             br(),
                             selectInput("vis_caps_main", width = 300,
@@ -1146,22 +1147,34 @@ server <- function(input, output){
                             div(id="container", actionButton("make_vis_caps", "Go"),
                                  actionButton("vis_caps_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                              ),
+                            br(),
                             textOutput("vis_caps_warning"),
                             br(),
                             uiOutput("download_vis_caps")
                      ),
                      column(width=7,
-                            plotOutput("vis_caps_out"), type = 5
+                            plotOutput("vis_caps_out")
                      )
             ),
             tabPanel(title="Joyplot",
-                     selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T))),
+                     br(),
+                     column(width = 4,
+                        selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
+                     ),
+                     column(width = 4,
+                         sliderInput("hue_range","HUE Degree Range", 0, 180, c(0,150), 1)   
+                     ),
                      plotOutput("vis_joyplot"),
+                     br(),
+                     br(),
+                     br(),
+                     br(),
+                     br(),
                      div(id="container", uiOutput("download_vis_joyplot_ui"),
                         actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
             )
-          )
+          ), style='height: 625px'
       ) 
     }
   })
@@ -1293,8 +1306,9 @@ server <- function(input, output){
       ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
         facet_grid(~meta2)+
         geom_density_ridges_gradient(stat = "identity", aes(fill=bin),alpha=0.5, scale = 1)+
-        scale_fill_gradientn(colors=hue_pal(l=65)(180))+
-        scale_x_continuous(breaks = c(0,90,180,270,360))+
+        scale_fill_gradientn(colors=hue_pal(l=65)(180)[input$hue_range[1]:input$hue_range[2]])+
+        scale_x_continuous(limits=c(input$hue_range[1],input$hue_range[2]),oob = rescale_none)+
+        scale_y_discrete(expand = c(0.01, 0)) +
         ylab("")+
         xlab("Hue Channel")+
         theme_ridges(grid=T,center_axis_labels = T)+
@@ -1795,20 +1809,16 @@ server <- function(input, output){
         }else{
           sub <- i[i$DAP == max(i$DAP),][1,]
           sub[,"DAP"] <- sub[,"DAP"]+1
+          sub[1,]
         }))
         dat$srv <- with(dat,Surv(time=DAP,event=(!DAP==(max(DAP)+1))))
-        sv_shapes_list <- split(merged$data,merged$data$Barcodes)
-        adj_df <- data.frame("Barcodes"=names(sv_shapes_list),"adj"=as.numeric(lapply(sv_shapes_list,function(i) max(which(aggregate(data=i,area~DAP,FUN = "mean")[,2]<10))+3)))
-        adj_df[which(adj_df == -Inf,arr.ind = T)] <- max(merged$data$DAP) 
-        sv_shapes <- join(merged$data,adj_df,by="Barcodes")
-        #des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
         fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
-        mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(sv_shapes$DAP):(max(sv_shapes$DAP)+1))
+        mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):(max(merged$data$DAP)))
         mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
         mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
     }),warning=function(war){},error=function(err){
         removeNotification(id)
-        report_errr(err)
+        report_error(err)
     }))
     if(class(res)!="try-error"){
       p <- ggplot(mod_df,aes(DAP,surv))
