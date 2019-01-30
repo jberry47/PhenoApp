@@ -99,6 +99,7 @@ observeEvent(input$nir_caps_about, {
     p("Before the analysis begins, all rows and columns which contain only values of 0 are removed from the NIR dataset."),
     p("To prevent the application from being overloaded by calculations, the 'Go' button will be disabled when a calculation begins. It can be re-activated by changing the variable in 'Main effect', 'Distance Type', or 'Which Day'. The option to download the plot will appear once the calculation is complete."),
     p("This analysis will likely take several minutes. It is possible to ",strong("reduce the calculation time by removing outliers from the data input"),". To do this, refer to the 'Outlier Detection and Removal' tab."),
+    easyClose = T,
     footer = NULL
   ))
 })
