@@ -658,17 +658,19 @@ server <- function(input, output){
           tabsetPanel(
             tabPanel(title="Shapes ANOVA",
                      selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
-                     actionButton("make_anova","Calculate ANOVA"),
+                     div(id="container", actionButton("make_anova","Calculate ANOVA"),
+                         actionButton("shapes_anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     ),
                      withSpinner(plotOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
-                     #actionButton("anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
             ),
             tabPanel(title="Temporal ANOVA",
-              selectInput("anova_ts_shape","Which Shape",s,"area"),
-              actionButton("make_anova_ts","Calculate ANOVA"),
-              withSpinner(plotOutput("anova_ts_plot"), type = 5),
-              uiOutput("download_anova_ts_ui")
-              #actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                    selectInput("anova_ts_shape","Which Shape",s,"area"),
+                    div(id="container", actionButton("make_anova_ts","Calculate ANOVA"),
+                        actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                    ),
+                    withSpinner(plotOutput("anova_ts_plot"), type = 5),
+                    uiOutput("download_anova_ts_ui")
             ),
             tabPanel(title="Trends",
                      selectInput("dep_var","Y-axis",s,"area"),

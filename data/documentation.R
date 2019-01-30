@@ -8,6 +8,24 @@ observeEvent(input$outlier_about, {
     ))
 })
 
+observeEvent(input$shapes_anova_about, {
+  showModal(modalDialog(
+    title = "ANOVA Plot",
+    p("This ANOVA attempts to estimate the percent variance explained in all 'shapes' elements due to the variables in the design file (disregarding Barcodes) on a specifiable DAP. It uses a fully random effect model and variances are calculated by Type3 sum of squares."),
+    easyClose = TRUE,
+    footer = NULL
+  ))
+})
+
+observeEvent(input$anova_ts_about, {
+  showModal(modalDialog(
+    title = "Temporal ANOVA Plot",
+    p("This ANOVA attempts to estimate the percent variance explained over time for a specifiable 'shape' element due to the variables in the design file. It uses a fully random effect model and variances are calculated by Type3 sum of squares."),
+    easyClose = TRUE,
+    footer = NULL
+  ))
+})
+
 observeEvent(input$trends_about, {
   showModal(modalDialog(
     title = "Shapes Trends Plots",
