@@ -46,6 +46,9 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                       fluidRow(
                         tags$head(tags$style("#container * {display: inline;}")),
                         tags$style(HTML("
+                                        .shiny-progress-notification .progress-text {
+                                        font-size: 17pt;
+                                        }
                                         .tabbable > .nav > li[class=active]    > a {background-color: #444444; color:white}
                                         .multicol{
                                         -webkit-column-count: 4; /* Chrome, Safari, Opera */
@@ -291,7 +294,7 @@ server <- function(input, output){
         n <- 9
       }
       
-      withProgress(message = 'Importing', value = 0, {
+      withProgress(message = '', value = 0, {
         imp_error_step$data <- "PhenoCV - Reading design file"
         incProgress(1/n, detail = "Reading design file...")
         assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
@@ -391,7 +394,7 @@ server <- function(input, output){
     from$data <- "plantcv"
     res <- try(withCallingHandlers(withLogErrors({
     n <- 17
-      withProgress(message = 'Importing', value = 0, {
+      withProgress(message = '', value = 0, {
         imp_error_step$data <- "PlantCV - Connecting to db"
         incProgress(1/n, detail = "Connecting to db...")
         db <- input$plantcv_sql_path$datapath
