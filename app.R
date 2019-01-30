@@ -245,7 +245,6 @@ server <- function(input, output){
   #***********************************************************************************************
   output$phenocv_go_ui <- renderUI({
     b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name,input$phenocv_nir_file$name)
-    #b <- c(input$phenocv_design_file$name,input$phenocv_snapshot_file$name,input$phenocv_shapes_file$name,input$phenocv_color_file$name)
     if((input$pheno_nir_q == "Yes" & length(b) == 5)|(input$pheno_nir_q == "No" & length(b) == 4)){
       actionButton("phenocv_merge","Merge Data")
     }
