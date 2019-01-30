@@ -1326,7 +1326,6 @@ server <- function(input, output){
         scale_y_discrete(expand = c(0.01, 0)) +
         ylab("")+
         xlab("Hue Channel")+
-        #theme_ridges(grid=T,center_axis_labels = T)+
         theme_light()+
         theme(legend.position='none')+
         theme(axis.text = element_text(size = 12),
