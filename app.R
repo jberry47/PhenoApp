@@ -1079,7 +1079,8 @@ server <- function(input, output){
       ylab(input$box_dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18),
+            axis.title.x= element_blank())+
       theme(plot.title = element_text(hjust = 0.5),
             strip.background=element_rect(fill="gray50"),
             strip.text.x=element_text(size=14,color="white"),
