@@ -703,7 +703,7 @@ server <- function(input, output){
                      selectInput("h_group_by","Group By",des,des[1]),
                      selectInput("h_facet_by","Facet By",des,des[2]),
                      textOutput("h_collapsed_over"),
-                     plotlyOutput("trends_heatmap"),
+                     plotOutput("trends_heatmap"),
                      div(id="container", uiOutput("download_shapes_heatmap_ui"),
                         actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -1052,8 +1052,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$trends_heatmap <- renderPlotly({
-    ggplotly(shapes_heatmap())
+  output$trends_heatmap <- renderPlot({
+    shapes_heatmap()
   })
   
   output$shapes_heatmap_download <- downloadHandler(
@@ -1180,7 +1180,7 @@ server <- function(input, output){
                      column(width = 4,
                          sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
                      ),
-                     plotlyOutput("vis_joyplot"),
+                     plotOutput("vis_joyplot"),
                      br(),
                      br(),
                      br(),
@@ -1339,8 +1339,8 @@ server <- function(input, output){
     }
   })
   
-  output$vis_joyplot <- renderPlotly({
-    ggplotly(vis_joyplot())
+  output$vis_joyplot <- renderPlot({
+    vis_joyplot()
   })
   
   output$vis_joyplot_download <- downloadHandler(
@@ -1392,12 +1392,12 @@ server <- function(input, output){
             tabPanel(title="Heatmap",
                      selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
                      selectInput("nir_collapse_by", "Collapse By",des,des[1]),
-                     plotlyOutput("nir_heatmap_nofacet"),
+                     plotOutput("nir_heatmap_nofacet"),
                      div(id="container", uiOutput("download_nir_heatmap_nofacet_ui"),
                          actionButton("nir_heatmap_nofacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      br(),
-                     plotlyOutput("nir_heatmap_withfacet"),
+                     plotOutput("nir_heatmap_withfacet"),
                      div(id="container", uiOutput("download_nir_heatmap_facet_ui"),
                         actionButton("nir_heatmap_withfacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -1530,8 +1530,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$nir_heatmap_nofacet <- renderPlotly({
-    ggplotly(nir_heatmap_nofacet())
+  output$nir_heatmap_nofacet <- renderPlot({
+    nir_heatmap_nofacet()
   })
   
   output$nir_heatmap_nofacet_download <- downloadHandler(
@@ -1562,8 +1562,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$nir_heatmap_withfacet <- renderPlotly({
-    ggplotly(nir_heatmap_facet())
+  output$nir_heatmap_withfacet <- renderPlot({
+    nir_heatmap_facet()
   })
   
   output$nir_heatmap_facet_download <- downloadHandler(
@@ -1593,21 +1593,12 @@ server <- function(input, output){
             tabPanel(title = "Image Quality",
                      br(),
                      textOutput("no_det"),       
-                     column(4, 
-                            numericInput("iqv_ylim_up", "Upper y-axis limit:", value = 10, width = 180)
-                     ),
-                     column(4, 
-                            numericInput("iqv_ylim_low", "Lower y-axis limit:", value = -100, width= 180)
-                     ),
+                     sliderInput("iqv_range","Y-axis Range", -360, 360, c(-100,10), 1,width = 200),
                      br(),
                      plotlyOutput("iqv_plot", width = 400),
-                     br(),
-                     br(),
-                     br(),
                      div(id="container", uiOutput("iqv_download_ui"),
                           actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
-                      ),
-                     br()
+                      )
             ),
             tabPanel(title = "Water",
                    selectInput("water_facet_by", "Facet By:", des, des[1], width = 180),
@@ -1656,7 +1647,7 @@ server <- function(input, output){
     ggplot(merged$data, aes(x = hour, y = det))+
       geom_jitter()+
       scale_x_continuous(breaks = seq(0, 24, 2), limits = c(0, 24))+
-      ylim(input$iqv_ylim_low, input$iqv_ylim_up)+
+      ylim(input$iqv_range[1], input$iqv_range[2])+
       ylab("Deviance (D)")+
       theme_light()+
       theme(axis.text = element_text(size = 12),
@@ -1698,7 +1689,8 @@ server <- function(input, output){
       facet_grid(~eval(parse(text=input$water_facet_by)))+
       theme_light()+
       theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
+            axis.title= element_text(size = 18),
+            axis.title.x= element_blank())+
       theme(plot.title = element_text(hjust = 0.5),
             strip.background=element_rect(fill="gray50"),
             strip.text.x=element_text(size=14,color="white"),
