@@ -6,6 +6,7 @@ library(gridExtra)
 library(shiny)
 library(shinyBS)
 library(shinydashboard)
+library(plotly)
 library(DT)
 library(shinyjs)
 library(plyr)
@@ -547,7 +548,7 @@ server <- function(input, output){
           actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
           textOutput("outliers_model"),
           textOutput("num_outliers"),
-          plotOutput("cooksd_plot"),
+          plotlyOutput("cooksd_plot"),
           uiOutput("remove_outliers_ui"),
           br(),
           uiOutput("download_cooks_ui")
@@ -599,9 +600,9 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$cooksd_plot <- renderPlot({
+  output$cooksd_plot <- renderPlotly({
     if(!is.null(cooksd$data)){
-      cooks_plot()
+      ggplotly(cooks_plot())
     }
   })
   
@@ -675,7 +676,7 @@ server <- function(input, output){
                      div(id="container", actionButton("make_anova","Calculate ANOVA"),
                          actionButton("shapes_anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
-                     withSpinner(plotOutput("anova_plot"), type = 5),
+                     withSpinner(plotlyOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
             ),
             tabPanel(title="Temporal ANOVA",
@@ -683,7 +684,7 @@ server <- function(input, output){
                     div(id="container", actionButton("make_anova_ts","Calculate ANOVA"),
                         actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                     ),
-                    withSpinner(plotOutput("anova_ts_plot"), type = 5),
+                    withSpinner(plotlyOutput("anova_ts_plot"), type = 5),
                     uiOutput("download_anova_ts_ui")
             ),
             tabPanel(title="Trends",
@@ -691,7 +692,7 @@ server <- function(input, output){
                      selectInput("color_by","Color By",des,des[1]),
                      selectInput("facet_by","Facet By",des,des[2]),
                      textOutput("trends_collapsed_over"),
-                     plotOutput("trends_plot"),
+                     plotlyOutput("trends_plot"),
                      div(id="container", uiOutput("download_shapes_trends_ui"),
                         actionButton("trends_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -701,7 +702,7 @@ server <- function(input, output){
                      selectInput("h_group_by","Group By",des,des[1]),
                      selectInput("h_facet_by","Facet By",des,des[2]),
                      textOutput("h_collapsed_over"),
-                     plotOutput("trends_heatmap"),
+                     plotlyOutput("trends_heatmap"),
                      div(id="container", uiOutput("download_shapes_heatmap_ui"),
                         actionButton("heatmap_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -712,7 +713,7 @@ server <- function(input, output){
                      selectInput("box_group_by","Group By",des,des[1]),
                      selectInput("box_facet_by","Facet By",des,des[2]),
                      textOutput("box_collapsed_over"),
-                     plotOutput("boxplot_shapes"),
+                     plotlyOutput("boxplot_shapes"),
                      div(id="container", uiOutput("download_shapes_boxplot_ui"),
                         actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -851,9 +852,9 @@ server <- function(input, output){
     }
   })
   
-  output$anova_plot <- renderPlot({
+  output$anova_plot <- renderPlotly({
     if(!is.null(anova_dat$data)){
-      shapes_anova()
+      ggplotly(shapes_anova())
     }
   })
   
@@ -978,9 +979,9 @@ server <- function(input, output){
     }
   })
   
-  output$anova_ts_plot <- renderPlot({
+  output$anova_ts_plot <- renderPlotly({
     if(!is.null(anova_ts_dat$data)){
-      anova_ts()
+      ggplotly(anova_ts())
     }
   })
   
@@ -1013,8 +1014,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$trends_plot <- renderPlot({
-    shapes_trends()
+  output$trends_plot <- renderPlotly({
+    ggplotly(shapes_trends())
   })
   
   output$shapes_trends_download <- downloadHandler(
@@ -1050,8 +1051,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$trends_heatmap <- renderPlot({
-    shapes_heatmap()
+  output$trends_heatmap <- renderPlotly({
+    ggplotly(shapes_heatmap())
   })
   
   output$shapes_heatmap_download <- downloadHandler(
@@ -1085,8 +1086,8 @@ server <- function(input, output){
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
   
-  output$boxplot_shapes <- renderPlot({
-    shapes_boxplot()
+  output$boxplot_shapes <- renderPlotly({
+    ggplotly(shapes_boxplot())
   })
   
   output$shapes_boxplot_download <- downloadHandler(
@@ -1167,7 +1168,7 @@ server <- function(input, output){
                             uiOutput("download_vis_caps")
                      ),
                      column(width=7,
-                            plotOutput("vis_caps_out")
+                            plotlyOutput("vis_caps_out")
                      )
             ),
             tabPanel(title="Joyplot",
@@ -1178,7 +1179,7 @@ server <- function(input, output){
                      column(width = 4,
                          sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
                      ),
-                     plotOutput("vis_joyplot"),
+                     plotlyOutput("vis_joyplot"),
                      br(),
                      br(),
                      br(),
@@ -1281,11 +1282,11 @@ server <- function(input, output){
     }
   })
   
-  output$vis_caps_out <- renderPlot({
+  output$vis_caps_out <- renderPlotly({
     if(input$vis_caps_main != "--"){
-      vis_caps_plot()
+      ggplotly(vis_caps_plot())
     }else{
-      ggplot()
+      ggplotly(ggplot())
     }
   })
   
@@ -1337,8 +1338,8 @@ server <- function(input, output){
     }
   })
   
-  output$vis_joyplot <- renderPlot({
-    vis_joyplot()
+  output$vis_joyplot <- renderPlotly({
+    ggplotly(vis_joyplot())
   })
   
   output$vis_joyplot_download <- downloadHandler(
@@ -1384,18 +1385,18 @@ server <- function(input, output){
                             uiOutput("download_nir_caps")
                      ),
                      column(width=7,
-                            withSpinner(plotOutput("nir_caps_out"), type = 5)
+                            withSpinner(plotlyOutput("nir_caps_out"), type = 5)
                      )
             ),
             tabPanel(title="Heatmap",
                      selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
                      selectInput("nir_collapse_by", "Collapse By",des,des[1]),
-                     plotOutput("nir_heatmap_nofacet"),
+                     plotlyOutput("nir_heatmap_nofacet"),
                      div(id="container", uiOutput("download_nir_heatmap_nofacet_ui"),
                          actionButton("nir_heatmap_nofacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
                      br(),
-                     plotOutput("nir_heatmap_withfacet"),
+                     plotlyOutput("nir_heatmap_withfacet"),
                      div(id="container", uiOutput("download_nir_heatmap_facet_ui"),
                         actionButton("nir_heatmap_withfacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -1493,11 +1494,11 @@ server <- function(input, output){
     }
   })
   
-  output$nir_caps_out <- renderPlot({
+  output$nir_caps_out <- renderPlotly({
     if(input$nir_caps_main != "--"){
-      nir_caps_plot()
+      ggplotly(nir_caps_plot())
     }else{
-      ggplot()
+      ggplotly(ggplot())
     }
   })
   
@@ -1528,8 +1529,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$nir_heatmap_nofacet <- renderPlot({
-    nir_heatmap_nofacet()
+  output$nir_heatmap_nofacet <- renderPlotly({
+    ggplotly(nir_heatmap_nofacet())
   })
   
   output$nir_heatmap_nofacet_download <- downloadHandler(
@@ -1560,8 +1561,8 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$nir_heatmap_withfacet <- renderPlot({
-    nir_heatmap_facet()
+  output$nir_heatmap_withfacet <- renderPlotly({
+    ggplotly(nir_heatmap_facet())
   })
   
   output$nir_heatmap_facet_download <- downloadHandler(
@@ -1598,7 +1599,7 @@ server <- function(input, output){
                             numericInput("iqv_ylim_low", "Lower y-axis limit:", value = -100, width= 180)
                      ),
                      br(),
-                     plotOutput("iqv_plot", width = 400),
+                     plotlyOutput("iqv_plot", width = 400),
                      br(),
                      br(),
                      br(),
@@ -1611,7 +1612,7 @@ server <- function(input, output){
                    selectInput("water_facet_by", "Facet By:", des, des[1], width = 180),
                    selectInput("water_color_by", "Color By:", des, des[2], width = 180),
                    selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180),
-                   plotOutput("water_plot"),
+                   plotlyOutput("water_plot"),
                    div(id="container", uiOutput("water_download_ui"),
                        actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                    )
@@ -1619,7 +1620,7 @@ server <- function(input, output){
             ),
             tabPanel(title = "OOF",
                    textOutput("oof_warn"),
-                   withSpinner(plotOutput("oof_plot", height = 650), type = 5),
+                   withSpinner(plotlyOutput("oof_plot", height = 650), type = 5),
                    div(id="container", uiOutput("oof_download_ui"),
                        actionButton("oof_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                    )
@@ -1627,7 +1628,7 @@ server <- function(input, output){
             ),
             tabPanel(title = "Emergence Rate",
                     textOutput("er_warn"),
-                    withSpinner(plotOutput("er_plot", height = 650), type = 5),
+                    withSpinner(plotlyOutput("er_plot", height = 650), type = 5),
                     div(id="container", uiOutput("er_download_ui"),
                         actionButton("er_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                     )
@@ -1665,9 +1666,9 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$iqv_plot <- renderPlot({
+  output$iqv_plot <- renderPlotly({
     if(!is.null(merged$data$det)){
-      iqv()
+      ggplotly(iqv())
     }
   })
   
@@ -1704,8 +1705,8 @@ server <- function(input, output){
       guides(color = guide_legend(title = input$water_color_by))
   })
   
-  output$water_plot <- renderPlot({
-    water()
+  output$water_plot <- renderPlotly({
+    ggplotly(water())
   })
   
   output$water_download <- downloadHandler(
@@ -1785,8 +1786,8 @@ server <- function(input, output){
     }
   })
   
-  output$oof_plot <- renderPlot({
-    oof_fig()
+  output$oof_plot <- renderPlotly({
+    ggplotly(oof_fig())
   })
   
   output$oof_download <- downloadHandler(
@@ -1860,8 +1861,8 @@ server <- function(input, output){
     }
     })
   
-  output$er_plot <- renderPlot({
-    er_fig()
+  output$er_plot <- renderPlotly({
+    ggplotly(er_fig())
   })
   
   output$er_download <- downloadHandler(
