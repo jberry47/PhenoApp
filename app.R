@@ -47,6 +47,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                       fluidRow(
                         tags$head(tags$style("#container * {display: inline;}")),
                         tags$style(HTML("
+                                        .shiny-progress-notification .progress-bar {background-color: darkgreen;}
                                         .shiny-progress-notification .progress-text {
                                         font-size: 17pt;
                                         }
