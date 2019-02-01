@@ -1176,7 +1176,7 @@ server <- function(input, output){
             tabPanel(title="Joyplot",
                      br(),
                      fluidRow(
-                       column(width = 4,
+                       column(width = 2,
                           selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
                        ),
                        column(width = 4,
