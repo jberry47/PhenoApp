@@ -1175,23 +1175,25 @@ server <- function(input, output){
             ),
             tabPanel(title="Joyplot",
                      br(),
-                     column(width = 4,
-                        selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
+                     fluidRow(
+                       column(width = 2,
+                          selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
+                       ),
+                       column(width = 4,
+                           sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
+                       )
                      ),
-                     column(width = 4,
-                         sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
-                     ),
-                     plotOutput("vis_joyplot"),
-                     br(),
-                     br(),
-                     br(),
-                     br(),
-                     br(),
-                     div(id="container", uiOutput("download_vis_joyplot_ui"),
-                        actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     fluidRow(
+                       column(width=12,
+                         plotOutput("vis_joyplot"),
+                         br(),
+                         div(id="container", uiOutput("download_vis_joyplot_ui"),
+                           actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                         )
+                       )
                      )
             )
-          ), style='height: 625px'
+          )
       ) 
     }
   })
@@ -1285,10 +1287,8 @@ server <- function(input, output){
   })
   
   output$vis_caps_out <- renderPlotly({
-    if(input$vis_caps_main != "--"){
+    if(vis_ready_checker$data){
       ggplotly(vis_caps_plot())
-    }else{
-      ggplotly(ggplot())
     }
   })
   
@@ -1412,7 +1412,6 @@ server <- function(input, output){
   nir_ready_checker <- reactiveValues(data=FALSE)
   nir_caps <- reactiveValues(data=NULL)
   
-  
   output$nir_caps_partial <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==1){
@@ -1497,10 +1496,8 @@ server <- function(input, output){
   })
   
   output$nir_caps_out <- renderPlotly({
-    if(input$nir_caps_main != "--"){
+    if(nir_ready_checker$data){
       ggplotly(nir_caps_plot())
-    }else{
-      ggplotly(ggplot())
     }
   })
   
