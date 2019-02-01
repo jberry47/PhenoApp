@@ -1175,23 +1175,25 @@ server <- function(input, output){
             ),
             tabPanel(title="Joyplot",
                      br(),
-                     column(width = 4,
-                        selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
+                     fluidRow(
+                       column(width = 4,
+                          selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
+                       ),
+                       column(width = 4,
+                           sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
+                       )
                      ),
-                     column(width = 4,
-                         sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
-                     ),
-                     plotOutput("vis_joyplot"),
-                     br(),
-                     br(),
-                     br(),
-                     br(),
-                     br(),
-                     div(id="container", uiOutput("download_vis_joyplot_ui"),
-                        actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     fluidRow(
+                       column(width=12,
+                         plotOutput("vis_joyplot"),
+                         br(),
+                         div(id="container", uiOutput("download_vis_joyplot_ui"),
+                           actionButton("vis_joyplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                         )
+                       )
                      )
             )
-          ), style='height: 625px'
+          )
       ) 
     }
   })
