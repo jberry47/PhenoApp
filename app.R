@@ -1285,10 +1285,8 @@ server <- function(input, output){
   })
   
   output$vis_caps_out <- renderPlotly({
-    if(input$vis_caps_main != "--"){
+    if(vis_ready_checker$data){
       ggplotly(vis_caps_plot())
-    }else{
-      ggplotly(ggplot())
     }
   })
   
@@ -1412,7 +1410,6 @@ server <- function(input, output){
   nir_ready_checker <- reactiveValues(data=FALSE)
   nir_caps <- reactiveValues(data=NULL)
   
-  
   output$nir_caps_partial <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==1){
@@ -1497,10 +1494,8 @@ server <- function(input, output){
   })
   
   output$nir_caps_out <- renderPlotly({
-    if(input$nir_caps_main != "--"){
+    if(nir_ready_checker$data){
       ggplotly(nir_caps_plot())
-    }else{
-      ggplotly(ggplot())
     }
   })
   
