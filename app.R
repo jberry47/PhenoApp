@@ -1618,18 +1618,21 @@ server <- function(input, output){
             ),
             tabPanel(title = "OOF",
                    textOutput("oof_warn"),
-                      uiOutput("oof_facetcolor"),
-                        column(width=12,
-                            withSpinner(plotlyOutput("oof_plot", height = 650), type = 5)
-                        ),
+                    uiOutput("oof_facetcolor"),
+                    column(width=12,
+                      withSpinner(plotlyOutput("oof_plot", height = 650), type = 5)
+                    ),
                    div(id="container", uiOutput("oof_download_ui"),
-                       actionButton("oof_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                      actionButton("oof_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                    )
                    
             ),
             tabPanel(title = "Emergence Rate",
                     textOutput("er_warn"),
-                    withSpinner(plotlyOutput("er_plot", height = 650), type = 5),
+                    uiOutput("er_facetcolor"),
+                    column(width=12,
+                      withSpinner(plotlyOutput("er_plot", height = 650), type = 5)
+                    ),
                     div(id="container", uiOutput("er_download_ui"),
                         actionButton("er_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                     )
@@ -1732,22 +1735,6 @@ server <- function(input, output){
       "Design is too complex to show in one plot. Please subset your design file."
     }
   }) 
-  
-  # output$oof_facetcolor <- renderUI({
-  #   des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-  #   if(length(des)==3){
-  #     column(4,
-  #       selectInput("oof_facet", "Facet By:", c("--",des),width = 180),
-  #       selectInput("oof_account", "Account For:", c("--",des),width = 180),
-  #       selectInput("oof_color", "Color By:", c("--",des),width = 180)
-  #     )
-  #   }else if(length(des)<3){
-  #     column(4,
-  #       selectInput("oof_facet", "Facet By:", c("--",des),width = 180),
-  #       selectInput("oof_color", "Color By:", c("--",des),width = 180)
-  #     )
-  #   }
-  # })
   
   output$oof_facetcolor <- renderUI({
       fluidRow(
@@ -1866,51 +1853,86 @@ server <- function(input, output){
     }
   })   
   
+  output$er_facetcolor <- renderUI({
+    fluidRow(
+      column(4,
+             uiOutput("er_facet")
+      ),
+      column(4,
+             uiOutput("er_account")
+      ),
+      column(4,
+             uiOutput("er_color")
+      )
+    )
+  })
+  
+  output$er_facet <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("er_facet", "Facet By:",c("--",des),width=180)
+  })
+  
+  output$er_account <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    if(length(des)==3){
+      selectInput("er_account", "Account For:", c("--",des[!des %in% input$er_facet]),width=180)
+    }
+  })
+  
+  output$er_color <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("er_color","Color By:",c("--",des[!des %in% c(input$er_facet,input$er_account)]),width=180)
+  })
+  
   er_fig <- reactive({
-    res <- try(withCallingHandlers(withLogErrors({
-      imp_error_step$data <- "Emergence Plot"
-      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-      #if(from$data == "phenocv"){
-        dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$area >= 10)){
-          sub <- i[i$area >= 10,]
-          sub[order(sub$DAP,decreasing=F),][1,]
+    if(any(c(input$er_facet,input$er_account,input$er_color) == "--")){
+      ggplot()
+    }else{
+      res <- try(withCallingHandlers(withLogErrors({
+        imp_error_step$data <- "Emergence Plot"
+          des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+        #if(from$data == "phenocv"){
+          dat <- do.call("rbind",lapply(split(merged$data,merged$data$Barcodes),function(i) if(any(i$area >= 10)){
+            sub <- i[i$area >= 10,]
+            sub[order(sub$DAP,decreasing=F),][1,]
+          }else{
+            sub <- i[i$DAP == max(i$DAP),][1,]
+            sub[,"DAP"] <- sub[,"DAP"]+1
+            sub[1,]
+          }))
+          dat$srv <- with(dat,Surv(time=DAP,event=(!DAP==(max(DAP)+1))))
+          fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
+          mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):(max(merged$data$DAP)))
+          mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
+          mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
+      }),warning=function(war){},error=function(err){
+          removeNotification(id)
+          report_error(err)
+      }))
+      if(class(res)!="try-error"){
+        p <- ggplot(mod_df,aes(DAP,surv))
+        if(length(des)>3){
+          ggplot()
+        }else if(length(des)==3){
+          p <- p+facet_grid(as.formula(paste0(input$er_facet,"~",input$er_account)))+
+            geom_line(aes_string(color=input$er_color))
+        }else if(length(des)==2){
+          p <- p+facet_grid(as.formula(paste0("~",input$er_facet)))+
+            geom_line(aes_string(color=input$er_color))
         }else{
-          sub <- i[i$DAP == max(i$DAP),][1,]
-          sub[,"DAP"] <- sub[,"DAP"]+1
-          sub[1,]
-        }))
-        dat$srv <- with(dat,Surv(time=DAP,event=(!DAP==(max(DAP)+1))))
-        fmla <- as.formula(paste0("srv~",paste(des,collapse="+")))
-        mod1 <- summary(survfit(fmla, data = dat, conf.type = "log-log"),time=min(merged$data$DAP):(max(merged$data$DAP)))
-        mod_df <- data.frame("DAP"=mod1$time,"strata"=as.character(mod1$strata),"surv"=mod1$surv,"low"=mod1$lower,"high"=mod1$upper,stringsAsFactors = F)
-        mod_df <- cbind(mod_df,setNames(data.frame(sapply(des,function(m){unlist(lapply(str_split(mod_df$strata,", "),function(i) trimws(str_split(i[str_detect(i,m)],"=")[[1]][2])))}),stringsAsFactors = F),des))
-    }),warning=function(war){},error=function(err){
-        removeNotification(id)
-        report_error(err)
-    }))
-    if(class(res)!="try-error"){
-      p <- ggplot(mod_df,aes(DAP,surv))
-      if(length(des)>3){
-        ggplot()
-      }else if(length(des)==3){
-        p <- p+facet_grid(as.formula(paste0(des[1],"~",des[2])))+
-          geom_line(aes_string(color=des[3]))
-      }else if(length(des)==2){
-        p <- p+facet_grid(as.formula(paste0("~",des[1])))+
-          geom_line(aes_string(color=des[2]))
-      }else{
-        p <- p+geom_line(aes_string(color=des[1]))
-      }
+          p <- p+geom_line(aes_string(color=des[1]))
+        }
       
-       p <- p+ylab("Emergence Risk")+
-         scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
-         theme_light()+
-         theme(axis.text = element_text(size = 14),
-               axis.title= element_text(size = 18))+ 
-         theme(strip.background=element_rect(fill="gray50"),
-               strip.text.x=element_text(size=14,color="white"),
-               strip.text.y=element_text(size=14,color="white"))
-       p
+         p <- p+ylab("Emergence Risk")+
+           scale_y_continuous(limits = c(0,1),breaks = seq(0,1,.2))+
+           theme_light()+
+           theme(axis.text = element_text(size = 14),
+                 axis.title= element_text(size = 18))+ 
+           theme(strip.background=element_rect(fill="gray50"),
+                 strip.text.x=element_text(size=14,color="white"),
+                 strip.text.y=element_text(size=14,color="white"))
+        p
+      }
     }
     })
   
