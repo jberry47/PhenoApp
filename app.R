@@ -1599,12 +1599,20 @@ server <- function(input, output){
                       )
             ),
             tabPanel(title = "Water",
-                   selectInput("water_facet_by", "Facet By:", des, des[1], width = 180),
-                   selectInput("water_color_by", "Color By:", des, des[2], width = 180),
-                   selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180),
-                   plotlyOutput("water_plot"),
-                   div(id="container", uiOutput("water_download_ui"),
-                       actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     fluidRow(
+                       column(4,
+                        selectInput("water_facet_by", "Facet By:", des, des[1], width = 180)
+                       ),
+                       column(4,
+                        selectInput("water_color_by", "Color By:", des, des[2], width = 180)
+                       ),
+                       column(4,
+                        selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
+                       )
+                     ),
+                        withSpinner(plotlyOutput("water_plot"),type=5),
+                        div(id="container", uiOutput("water_download_ui"),
+                            actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                    )
                    
             ),
