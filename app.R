@@ -673,7 +673,7 @@ server <- function(input, output){
       box(width=10,title = "Shapes Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           tabsetPanel(
             tabPanel(title="Shapes ANOVA",
-                     selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
+                     selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP)),width=180),
                      div(id="container", actionButton("make_anova","Calculate ANOVA"),
                          actionButton("shapes_anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      ),
@@ -681,7 +681,7 @@ server <- function(input, output){
                      uiOutput("download_shapes_anova_ui")
             ),
             tabPanel(title="Temporal ANOVA",
-                    selectInput("anova_ts_shape","Which Shape",s,"area"),
+                    selectInput("anova_ts_shape","Which Shape",s,"area",width=180),
                     div(id="container", actionButton("make_anova_ts","Calculate ANOVA"),
                         actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                     ),
@@ -689,9 +689,17 @@ server <- function(input, output){
                     uiOutput("download_anova_ts_ui")
             ),
             tabPanel(title="Trends",
-                     selectInput("dep_var","Y-axis",s,"area"),
-                     selectInput("color_by","Color By",des,des[1]),
-                     selectInput("facet_by","Facet By",des,des[2]),
+                     fluidRow(
+                       column(4,
+                        selectInput("dep_var","Y-axis",s,"area",width=180)
+                       ),
+                       column(4,
+                        selectInput("color_by","Color By",des,des[1],width=180)
+                       ),
+                       column(4,
+                        selectInput("facet_by","Facet By",des,des[2],width=180)
+                       )
+                     ),
                      textOutput("trends_collapsed_over"),
                      plotlyOutput("trends_plot"),
                      div(id="container", uiOutput("download_shapes_trends_ui"),
@@ -699,9 +707,17 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Heatmap",
-                     selectInput("h_color_by","Color By",s,"area"),
-                     selectInput("h_group_by","Group By",des,des[1]),
-                     selectInput("h_facet_by","Facet By",des,des[2]),
+                     fluidRow(
+                       column(4,
+                        selectInput("h_color_by","Color By",s,"area",width=180)
+                       ),
+                       column(4,
+                        selectInput("h_group_by","Group By",des,des[1],width=180)
+                       ),
+                       column(4,
+                        selectInput("h_facet_by","Facet By",des,des[2],width=180)
+                       )
+                     ),
                      textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
                      div(id="container", uiOutput("download_shapes_heatmap_ui"),
@@ -709,12 +725,25 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Boxplots",
-                     selectInput("box_dep_var","Y-axis",s,"area"),
-                     selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP))),
-                     selectInput("box_group_by","Group By",des,des[1]),
-                     selectInput("box_facet_by","Facet By",des,des[2]),
+                     fluidRow(
+                       column(2,
+                        selectInput("box_dep_var","Y-axis",s,"area",width=180)
+                       ),
+                       column(2,
+                        selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP)),width=180)
+                       ),
+                       column(2,
+                        selectInput("box_xaxis","X-Axis",des,des[1],width=180)
+                       ),
+                       column(2,
+                        selectInput("box_facet_by","Facet By",des,des[2],width=180)
+                       ),
+                       column(2,
+                        selectInput("box_fill","Fill By",des,des[3],width=180)
+                       )
+                     ),
                      textOutput("box_collapsed_over"),
-                     plotlyOutput("boxplot_shapes"),
+                     plotOutput("boxplot_shapes"),
                      div(id="container", uiOutput("download_shapes_boxplot_ui"),
                         actionButton("boxplot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
@@ -734,7 +763,7 @@ server <- function(input, output){
   
   output$box_collapsed_over <- renderText({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    left <- des[!(des %in% c(input$box_group_by,input$box_facet_by))]
+    left <- des[!(des %in% c(input$box_xaxis,input$box_facet_by))]
     if(!length(left) == 0){
       paste0("Boxes are collapsed over: ",paste(left,collapse=" ")) 
     }
@@ -1072,10 +1101,10 @@ server <- function(input, output){
   # Shapes Boxplots
   #***********************************************************************************************
   shapes_boxplot <- reactive({
-    ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_group_by,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
+    ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_xaxis,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
       facet_grid(~eval(parse(text=input$box_facet_by)))+
-      geom_violin(fill="gray50",alpha=.2)+
-      geom_boxplot(width=.25)+
+      #geom_violin(fill="gray50",alpha=.2)+
+      geom_boxplot(aes_string(fill=input$box_fill))+
       ylab(input$box_dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 12),
@@ -1088,8 +1117,8 @@ server <- function(input, output){
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
   
-  output$boxplot_shapes <- renderPlotly({
-    ggplotly(shapes_boxplot())
+  output$boxplot_shapes <- renderPlot({
+    shapes_boxplot()
   })
   
   output$shapes_boxplot_download <- downloadHandler(
@@ -1176,10 +1205,16 @@ server <- function(input, output){
             tabPanel(title="Joyplot",
                      br(),
                      fluidRow(
-                       column(width = 2,
-                          selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)))
+                       column(width = 3,
+                          selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width=180)
                        ),
-                       column(width = 4,
+                       column(width = 3,
+                          selectInput("vis_joyplot_facet","Facet By:",des,width=180)
+                       ),
+                       column(width = 3,
+                          selectInput("vis_joyplot_yaxis","Y-Axis:",des,width=180)
+                          ),
+                       column(width = 3,
                            sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
                        )
                      ),
@@ -1325,7 +1360,7 @@ server <- function(input, output){
         geom_density_ridges_gradient(stat = "identity", aes(fill=bin),alpha=0.5, scale = 1)+
         scale_fill_gradientn(colors=hue_pal(l=65)(360))+
         scale_x_continuous(limits=c(input$hue_range[1],input$hue_range[2]),oob = rescale_none)+
-        scale_y_discrete(expand = c(0.01, 0)) +
+        scale_y_discrete(expand = c(0.01, 0))+
         ylab("")+
         xlab("Hue Channel")+
         theme_light()+
@@ -1391,13 +1426,31 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Heatmap",
-                     selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T)),
-                     selectInput("nir_collapse_by", "Collapse By",des,des[1]),
+                     fluidRow(
+                       column(3,
+                        selectInput("nir_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T),width=180)
+                       ),
+                       column(3,
+                        selectInput("nir_collapse_by", "Collapse By",des,des[1],width=180)
+                       )
+                     ),
                      plotOutput("nir_heatmap_nofacet"),
                      div(id="container", uiOutput("download_nir_heatmap_nofacet_ui"),
                          actionButton("nir_heatmap_nofacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     )
+            ),
+            tabPanel(title="Faceted Heatmap",
+                     fluidRow(
+                       column(3,
+                        selectInput("nir_facet_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T),width=180)
+                       ),
+                       column(3,
+                        selectInput("nir_heat_facet","Facet By:",des,width=180)
+                       ),
+                       column(3,
+                        selectInput("nir_heat_yaxis","Y-Axis:",des,des[2],width=180)
+                       )
                      ),
-                     br(),
                      plotOutput("nir_heatmap_withfacet"),
                      div(id="container", uiOutput("download_nir_heatmap_facet_ui"),
                         actionButton("nir_heatmap_withfacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
@@ -1546,9 +1599,9 @@ server <- function(input, output){
   
   nir_heatmap_facet <- reactive({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_day_start),],as.formula(paste("intensityAVG~",des[1],"+",des[2],"+DAP")),FUN = function(i)mean(i,na.rm=T))
-    ggplot(test,aes_string("DAP",des[1]))+
-      facet_grid(~eval(parse(text=des[2])))+
+    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_facet_day_start),],as.formula(paste("intensityAVG~",input$nir_heat_yaxis,"+",input$nir_heat_facet,"+DAP")),FUN = function(i)mean(i,na.rm=T))
+    ggplot(test,aes_string("DAP",input$nir_heat_yaxis))+ 
+      facet_grid(~eval(parse(text=input$nir_heat_facet)))+
       geom_tile(aes(fill=intensityAVG))+
       scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
       theme_light()+
@@ -1752,19 +1805,19 @@ server <- function(input, output){
   
   output$oof_facet <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_facet", "Facet By:",c("--",des),width=180)
+    selectInput("oof_facet", "Facet By:",des,des[1],width=180)
   })
   
   output$oof_account <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==3){
-      selectInput("oof_account", "Account For:", c("--",des[!des %in% input$oof_facet]),width=180)
+      selectInput("oof_account", "Account For:", des[!des %in% input$oof_facet],des[2],width=180)
     }
   })
   
   output$oof_color <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_color","Color By:",c("--",des[!des %in% c(input$oof_facet,input$oof_account)]),width=180)
+    selectInput("oof_color","Color By:",des[!des %in% c(input$oof_facet,input$oof_account)],des[3],width=180)
   })
   
   oof_fig <- reactive({
@@ -1869,19 +1922,19 @@ server <- function(input, output){
   
   output$er_facet <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_facet", "Facet By:",c("--",des),width=180)
+    selectInput("er_facet", "Facet By:",des,des[1],width=180)
   })
   
   output$er_account <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==3){
-      selectInput("er_account", "Account For:", c("--",des[!des %in% input$er_facet]),width=180)
+      selectInput("er_account", "Account For:",des[!des %in% input$er_facet],des[2],width=180)
     }
   })
   
   output$er_color <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_color","Color By:",c("--",des[!des %in% c(input$er_facet,input$er_account)]),width=180)
+    selectInput("er_color","Color By:",des[!des %in% c(input$er_facet,input$er_account)],des[3],width=180)
   })
   
   er_fig <- reactive({
