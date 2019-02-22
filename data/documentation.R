@@ -127,6 +127,7 @@ observeEvent(input$oof_about, {
     title = "Out of Frame Plot",
     p("This plot describes the approximate DAP in which plants begin to grow out of frame in the images. The plot does not take into account empty pots."),
     p("If the design file contains more than three variables (aside from Barcodes), the complexity will prevent the figure from loading. If this occurs, please subset the design file so it includes Barcodes and one to three design variables."),
+    p("The plot will load in once a design variable is selected for all three input selections."),
     easyClose = T,
     footer = NULL
   ))
@@ -137,6 +138,7 @@ observeEvent(input$er_about, {
     title = "Emergence Rate Plot",
     p("This plot shows the approximate DAP in which plants begin to emerge from their pots and come into frame in the images. The plot does not take into account empty pots."),
     p("If the design file contains more than three variables (aside from Barcodes), the complexity will prevent the figure from loading. If this occurs, please subset the design file so it includes Barcodes and one to three design variables."),
+    p("The plot will load in once a design variable is selected for all three input selections."),
     easyClose = T,
     footer = NULL
   ))
