@@ -1821,9 +1821,6 @@ server <- function(input, output){
   })
   
   oof_fig <- reactive({
-    if(any(c(input$oof_facet,input$oof_account,input$oof_color) == "--")){
-      ggplot()
-    }else{
       res <- try(withCallingHandlers(withLogErrors({
         imp_error_step$data <- "Survival Plot"
         des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
@@ -1876,7 +1873,6 @@ server <- function(input, output){
                 strip.text.y=element_text(size=14,color="white"))
         p 
       }
-    }
   })
   
   output$oof_plot <- renderPlotly({
