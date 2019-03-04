@@ -1653,13 +1653,13 @@ server <- function(input, output){
             ),
             tabPanel(title = "Water",
                      fluidRow(
-                       column(4,
+                       column(3,
                         selectInput("water_facet_by", "Facet By:", des, des[1], width = 180)
                        ),
-                       column(4,
+                       column(3,
                         selectInput("water_color_by", "Color By:", des, des[2], width = 180)
                        ),
-                       column(4,
+                       column(3,
                         selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
                        )
                      ),
@@ -1791,13 +1791,13 @@ server <- function(input, output){
   
   output$oof_facetcolor <- renderUI({
       fluidRow(
-        column(4,
+        column(3,
           uiOutput("oof_facet")
         ),
-        column(4,
+        column(3,
           uiOutput("oof_account")
         ),
-        column(4,
+        column(3,
           uiOutput("oof_color")
         )
       )
@@ -1821,6 +1821,9 @@ server <- function(input, output){
   })
   
   oof_fig <- reactive({
+    if(any(is.null(c(input$oof_facet, input$oof_account, input$oof_color)))){
+      ggplot()
+    }else{
       res <- try(withCallingHandlers(withLogErrors({
         imp_error_step$data <- "Survival Plot"
         des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
@@ -1873,6 +1876,7 @@ server <- function(input, output){
                 strip.text.y=element_text(size=14,color="white"))
         p 
       }
+    }
   })
   
   output$oof_plot <- renderPlotly({
@@ -1904,13 +1908,13 @@ server <- function(input, output){
   
   output$er_facetcolor <- renderUI({
     fluidRow(
-      column(4,
+      column(3,
              uiOutput("er_facet")
       ),
-      column(4,
+      column(3,
              uiOutput("er_account")
       ),
-      column(4,
+      column(3,
              uiOutput("er_color")
       )
     )
@@ -1934,7 +1938,7 @@ server <- function(input, output){
   })
   
   er_fig <- reactive({
-    if(any(c(input$er_facet,input$er_account,input$er_color) == "--")){
+    if(any(is.null(c(input$er_facet, input$er_account, input$er_color)))){
       ggplot()
     }else{
       res <- try(withCallingHandlers(withLogErrors({
