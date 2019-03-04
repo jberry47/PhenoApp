@@ -1652,22 +1652,13 @@ server <- function(input, output){
                       )
             ),
             tabPanel(title = "Water",
-                     fluidRow(
-                       column(3,
-                        selectInput("water_facet_by", "Facet By:", des, des[1], width = 180)
-                       ),
-                       column(3,
-                        selectInput("water_color_by", "Color By:", des, des[2], width = 180)
-                       ),
-                       column(3,
-                        selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
-                       )
-                     ),
-                        withSpinner(plotlyOutput("water_plot"),type=5),
+                      uiOutput("water_facetcolor"),
+                      column(width=12,
+                        withSpinner(plotlyOutput("water_plot"),type=5)
+                      ),
                         div(id="container", uiOutput("water_download_ui"),
                             actionButton("water_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
-                   )
-                   
+                        )
             ),
             tabPanel(title = "OOF",
                    textOutput("oof_warn"),
@@ -1748,6 +1739,46 @@ server <- function(input, output){
     }
   })
   
+  output$water_facetcolor <- renderUI({
+    fluidRow(
+      column(3,
+             uiOutput("water_facet_by")
+      ),
+      column(3,
+             uiOutput("water_color_by")
+      ),
+      column(3,
+             uiOutput("water_var")
+      )
+    )
+  })
+  
+  output$water_facet_by <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("water_facet_by", "Facet By:", des, des[1], width = 180)
+  })
+  
+  output$water_color_by <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("water_color_by", "Color By:", des[!des %in% input$water_facet_by],des[2],width=180)
+  })
+  
+  output$water_var <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
+  })
+  
+  # fluidRow(
+  #   column(3,
+  #          selectInput("water_facet_by", "Facet By:", des, des[1], width = 180)
+  #   ),
+  #   column(3,
+  #          selectInput("water_color_by", "Color By:", des, des[2], width = 180)
+  #   ),
+  #   column(3,
+  #          selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
+  #   )
+  
   water <- reactive({
     ggplot(snapshot$data, aes_string(x = "timestamp", y = input$water_var))+
       geom_point(aes_string(color = paste0("as.factor(",input$water_color_by,")")))+
@@ -1764,7 +1795,11 @@ server <- function(input, output){
   })
   
   output$water_plot <- renderPlotly({
-    ggplotly(water())
+    if(any(is.null(c(input$water_facet_by, input$water_color_by, input$water_var)))){
+      ggplot()
+    }else{
+      ggplotly(water())
+    }
   })
   
   output$water_download <- downloadHandler(
