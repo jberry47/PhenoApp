@@ -673,30 +673,44 @@ server <- function(input, output){
       box(width=10,title = "Shapes Analysis",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
           tabsetPanel(
             tabPanel(title="Shapes ANOVA",
-                     selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP)),width=180),
-                     div(id="container", actionButton("make_anova","Calculate ANOVA"),
-                         actionButton("shapes_anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     fluidRow(
+                              column(width=3,
+                              selectInput("which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP)),width=180)
+                       ),
+                       column(width=3,
+                              br(),
+                              div(id="container", actionButton("make_anova","Calculate ANOVA"),
+                              actionButton("shapes_anova_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                        )
+                       )
                      ),
                      withSpinner(plotlyOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
             ),
             tabPanel(title="Temporal ANOVA",
-                    selectInput("anova_ts_shape","Which Shape",s,"area",width=180),
-                    div(id="container", actionButton("make_anova_ts","Calculate ANOVA"),
-                        actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                     fluidRow(
+                       column(width=3,
+                              selectInput("anova_ts_shape","Which Shape",s,"area",width=180)
+                       ),
+                       column(width=3,
+                              br(),
+                              div(id="container", actionButton("make_anova_ts","Calculate ANOVA"),
+                              actionButton("anova_ts_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                              )
+                       )
                     ),
                     withSpinner(plotlyOutput("anova_ts_plot"), type = 5),
                     uiOutput("download_anova_ts_ui")
             ),
             tabPanel(title="Trends",
                      fluidRow(
-                       column(4,
+                       column(3,
                         selectInput("dep_var","Y-axis",s,"area",width=180)
                        ),
-                       column(4,
+                       column(3,
                         selectInput("color_by","Color By",des,des[1],width=180)
                        ),
-                       column(4,
+                       column(3,
                         selectInput("facet_by","Facet By",des,des[2],width=180)
                        )
                      ),
@@ -707,17 +721,7 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Heatmap",
-                     fluidRow(
-                       column(4,
-                        selectInput("h_color_by","Color By",s,"area",width=180)
-                       ),
-                       column(4,
-                        selectInput("h_group_by","Group By",des,des[1],width=180)
-                       ),
-                       column(4,
-                        selectInput("h_facet_by","Facet By",des,des[2],width=180)
-                       )
-                     ),
+                     uiOutput("heatmap_facetcolor"),
                      textOutput("h_collapsed_over"),
                      plotOutput("trends_heatmap"),
                      div(id="container", uiOutput("download_shapes_heatmap_ui"),
@@ -725,23 +729,7 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Boxplots",
-                     fluidRow(
-                       column(2,
-                        selectInput("box_dep_var","Y-axis",s,"area",width=180)
-                       ),
-                       column(2,
-                        selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP)),width=180)
-                       ),
-                       column(2,
-                        selectInput("box_xaxis","X-Axis",des,des[1],width=180)
-                       ),
-                       column(2,
-                        selectInput("box_facet_by","Facet By",des,des[2],width=180)
-                       ),
-                       column(2,
-                        selectInput("box_fill","Fill By",des,des[3],width=180)
-                       )
-                     ),
+                     uiOutput("box_facetcolor"),
                      textOutput("box_collapsed_over"),
                      plotOutput("boxplot_shapes"),
                      div(id="container", uiOutput("download_shapes_boxplot_ui"),
@@ -762,10 +750,18 @@ server <- function(input, output){
   })
   
   output$box_collapsed_over <- renderText({
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    left <- des[!(des %in% c(input$box_xaxis,input$box_facet_by))]
-    if(!length(left) == 0){
-      paste0("Boxes are collapsed over: ",paste(left,collapse=" ")) 
+    if(any(is.null(c(input$box_xaxis,input$box_facet_by,input$box_fill)))){
+      paste0("Please wait...")
+    }else{
+      des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+      if(length(des)>=3){
+        left <- des[!(des %in% c(input$box_xaxis,input$box_facet_by,input$box_fill))]
+      }else if(length(des)==2){
+        left <- des[!(des %in% c(input$box_xaxis,input$box_facet_by))]
+      }
+      if(!length(left) == 0){
+        paste0("Boxes are collapsed over: ",paste(left,collapse=" ")) 
+      }
     }
   })
   
@@ -1081,8 +1077,42 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
+  output$heatmap_facetcolor <- renderUI({
+    fluidRow(
+      column(3,
+             uiOutput("h_color_by_ui")
+      ),
+      column(3,
+             uiOutput("h_group_by_ui")
+      ),
+      column(3,
+             uiOutput("h_facet_by_ui")
+      )
+    )
+  })
+  
+  output$h_color_by_ui <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
+    selectInput("h_color_by","Color By",s,"area",width=180)
+  })
+  
+  output$h_group_by_ui <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    selectInput("h_group_by","Group By",des,des[1],width=180)
+  })
+  
+  output$h_facet_by_ui <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    selectInput("h_facet_by","Facet By",des[!des %in% input$h_group_by],des[2],width=180)
+  })
+  
   output$trends_heatmap <- renderPlot({
-    shapes_heatmap()
+    if(any(is.null(c(input$h_color_by,input$h_group_by,input$h_facet_by)))){
+      ggplot()
+    }else{
+      shapes_heatmap()
+    }
   })
   
   output$shapes_heatmap_download <- downloadHandler(
@@ -1101,24 +1131,98 @@ server <- function(input, output){
   # Shapes Boxplots
   #***********************************************************************************************
   shapes_boxplot <- reactive({
-    ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_xaxis,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
-      facet_grid(~eval(parse(text=input$box_facet_by)))+
-      #geom_violin(fill="gray50",alpha=.2)+
-      geom_boxplot(aes_string(fill=input$box_fill))+
-      ylab(input$box_dep_var)+
-      theme_light()+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18),
-            axis.title.x= element_blank())+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))+
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+      if(length(des)>=3){
+        ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_xaxis,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
+          facet_grid(~eval(parse(text=input$box_facet_by)))+
+          geom_boxplot(aes_string(fill=input$box_fill))+
+          ylab(input$box_dep_var)+
+          theme_light()+
+          theme(axis.text = element_text(size = 12),
+                axis.title= element_text(size = 18),
+                axis.title.x= element_blank())+
+          theme(plot.title = element_text(hjust = 0.5),
+                strip.background=element_rect(fill="gray50"),
+                strip.text.x=element_text(size=14,color="white"),
+                strip.text.y=element_text(size=14,color="white"))+
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      }else if(length(des)==2){
+        ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_xaxis,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
+          facet_grid(~eval(parse(text=input$box_facet_by)))+
+          geom_violin(fill="gray50",alpha=.2)+
+          geom_boxplot()+
+          ylab(input$box_dep_var)+
+          theme_light()+
+          theme(axis.text = element_text(size = 12),
+                axis.title= element_text(size = 18),
+                axis.title.x= element_blank())+
+          theme(plot.title = element_text(hjust = 0.5),
+                strip.background=element_rect(fill="gray50"),
+                strip.text.x=element_text(size=14,color="white"),
+                strip.text.y=element_text(size=14,color="white"))+
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        
+      }
   })
   
+  output$box_facetcolor <- renderUI({
+    fluidRow(
+      column(2,
+             uiOutput("box_dep_var_ui")
+      ),
+      column(2,
+             uiOutput("box_which_day_ui")
+      ),
+      column(2,
+             uiOutput("box_xaxis_ui")
+      ),
+      column(2,
+             uiOutput("box_facet_by_ui")
+      ),
+      column(2,
+              uiOutput("box_fill_ui")
+      )
+    )
+  })
+  
+  output$box_dep_var_ui <- renderUI({
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
+    selectInput("box_dep_var","Y-axis",s,"area",width=180)
+  })  
+
+  output$box_which_day_ui <- renderUI({
+    selectInput("box_which_day","Which Day",sort(unique(merged$data$DAP)),max(unique(merged$data$DAP)),width=180)
+  })
+  
+  output$box_xaxis_ui <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    selectInput("box_xaxis","X-Axis",des,des[1],width=180)
+  })
+  
+  output$box_facet_by_ui <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    selectInput("box_facet_by","Facet By",des[!des %in% input$box_xaxis],des[2],width=180)
+  })
+  
+  output$box_fill_ui <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    if(length(des)>=3){
+      selectInput("box_fill","Fill By",des[!des %in% c(input$box_xaxis, input$box_facet_by)],des[3],width=180)
+    }
+  })
+
+  output$box_dep_var <- renderUI({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    s <- colnames(shapes$data)[!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))]
+    selectInput("box_dep_var","Y-axis",s,"area",width=180)
+  })
+    
   output$boxplot_shapes <- renderPlot({
-    shapes_boxplot()
+    if(any(is.null(c(input$box_dep_var,input$box_which_day,input$box_xaxis,input$box_facet_by,input$box_fill)))){
+      ggplot()
+    }else{
+      shapes_boxplot()
+    }
   })
   
   output$shapes_boxplot_download <- downloadHandler(
@@ -1767,17 +1871,6 @@ server <- function(input, output){
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
   })
-  
-  # fluidRow(
-  #   column(3,
-  #          selectInput("water_facet_by", "Facet By:", des, des[1], width = 180)
-  #   ),
-  #   column(3,
-  #          selectInput("water_color_by", "Color By:", des, des[2], width = 180)
-  #   ),
-  #   column(3,
-  #          selectInput("water_var", "Water Measure:", c("weight.before","weight.after","water.amount"), "weight.before", width = 180)
-  #   )
   
   water <- reactive({
     ggplot(snapshot$data, aes_string(x = "timestamp", y = input$water_var))+
