@@ -750,7 +750,7 @@ server <- function(input, output){
   })
   
   output$box_collapsed_over <- renderText({
-    if(any(is.null(c(input$box_xaxis,input$box_facet_by,input$box_fill)))){
+    if(any(is.null(c(input$box_xaxis,input$box_facet_by,input$box_fill)),(input$box_xaxis == input$box_facet_by))){
       paste0("Please wait...")
     }else{
       des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
@@ -1132,6 +1132,9 @@ server <- function(input, output){
   #***********************************************************************************************
   shapes_boxplot <- reactive({
     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    if(any(is.null(c(input$box_dep_var,input$box_which_day,input$box_xaxis,input$box_facet_by)),input$box_xaxis == input$box_facet_by)){
+      ggplot()
+    }else{
       if(length(des)>=3){
         ggplot(merged$data[merged$data$DAP == input$box_which_day,],aes_string(input$box_xaxis,paste("as.numeric(",input$box_dep_var,")",collapse = "")))+
           facet_grid(~eval(parse(text=input$box_facet_by)))+
@@ -1161,8 +1164,8 @@ server <- function(input, output){
                 strip.text.x=element_text(size=14,color="white"),
                 strip.text.y=element_text(size=14,color="white"))+
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
-        
       }
+    }
   })
   
   output$box_facetcolor <- renderUI({
@@ -1920,26 +1923,28 @@ server <- function(input, output){
   output$oof_facetcolor <- renderUI({
       fluidRow(
         column(3,
-          uiOutput("oof_facet")
+          uiOutput("oof_color")
         ),
         column(3,
           uiOutput("oof_account")
         ),
         column(3,
-          uiOutput("oof_color")
+          uiOutput("oof_facet")
         )
       )
   })
   
   output$oof_facet <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_facet", "Facet By:",des,des[1],width=180)
+    if(length(des)==3){
+      selectInput("oof_facet", "Y-axis Facet By:",des,des[1],width=180)
+    }
   })
   
   output$oof_account <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(length(des)==3){
-      selectInput("oof_account", "Account For:", des[!des %in% input$oof_facet],des[2],width=180)
+    if(length(des)>1){
+      selectInput("oof_account", "X-axis Facet By:", des[!des %in% input$oof_facet],des[2],width=180)
     }
   })
   
@@ -1949,7 +1954,7 @@ server <- function(input, output){
   })
   
   oof_fig <- reactive({
-    if(any(is.null(c(input$oof_facet, input$oof_account, input$oof_color)))){
+    if(any(is.null(c(input$oof_facet, input$oof_account, input$oof_color)),(input$oof_color == input$oof_account))){
       ggplot()
     }else{
       res <- try(withCallingHandlers(withLogErrors({
@@ -2037,26 +2042,28 @@ server <- function(input, output){
   output$er_facetcolor <- renderUI({
     fluidRow(
       column(3,
-             uiOutput("er_facet")
+             uiOutput("er_color")
       ),
       column(3,
              uiOutput("er_account")
       ),
       column(3,
-             uiOutput("er_color")
+             uiOutput("er_facet")
       )
     )
   })
   
   output$er_facet <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_facet", "Facet By:",des,des[1],width=180)
+    if(length(des)==3){
+      selectInput("er_facet", "Y-axis Facet By:",des,des[1],width=180)
+    }
   })
   
   output$er_account <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(length(des)==3){
-      selectInput("er_account", "Account For:",des[!des %in% input$er_facet],des[2],width=180)
+    if(length(des)>1){
+      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_facet],des[2],width=180)
     }
   })
   
@@ -2066,7 +2073,7 @@ server <- function(input, output){
   })
   
   er_fig <- reactive({
-    if(any(is.null(c(input$er_facet, input$er_account, input$er_color)))){
+    if(any(is.null(c(input$er_facet, input$er_account, input$er_color)),(input$er_account == input$er_color))){
       ggplot()
     }else{
       res <- try(withCallingHandlers(withLogErrors({
@@ -2098,7 +2105,7 @@ server <- function(input, output){
           p <- p+facet_grid(as.formula(paste0(input$er_facet,"~",input$er_account)))+
             geom_line(aes_string(color=input$er_color))
         }else if(length(des)==2){
-          p <- p+facet_grid(as.formula(paste0("~",input$er_facet)))+
+          p <- p+facet_grid(as.formula(paste0("~",input$er_account)))+
             geom_line(aes_string(color=input$er_color))
         }else{
           p <- p+geom_line(aes_string(color=des[1]))
