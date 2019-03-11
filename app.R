@@ -286,7 +286,7 @@ server <- function(input, output){
   imp_error_step <- reactiveValues(data=NULL)
 
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
     from$data <- "phenocv"
     res <- try(withCallingHandlers(withLogErrors({
       if(input$pheno_nir_q == "Yes"){
@@ -391,7 +391,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
     from$data <- "plantcv"
     res <- try(withCallingHandlers(withLogErrors({
     n <- 17
