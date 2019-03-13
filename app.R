@@ -1801,7 +1801,7 @@ server <- function(input, output){
                      textOutput("no_det"),       
                      sliderInput("iqv_range","Y-axis Range", -360, 360, c(-100,10), 1,width = 200),
                      br(),
-                     plotlyOutput("iqv_plot", width = 400),
+                     plotOutput("iqv_plot", width = 400),
                      div(id="container", uiOutput("iqv_download_ui"),
                           actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                       )
@@ -1869,9 +1869,9 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$iqv_plot <- renderPlotly({
+  output$iqv_plot <- renderPlot({
     if(!is.null(merged$data$det)){
-      ggplotly(iqv())
+      iqv()
     }
   })
   
