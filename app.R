@@ -549,7 +549,7 @@ server <- function(input, output){
           actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
           textOutput("outliers_model"),
           textOutput("num_outliers"),
-          plotlyOutput("cooksd_plot"),
+          plotOutput("cooksd_plot"),
           uiOutput("remove_outliers_ui"),
           br(),
           uiOutput("download_cooks_ui")
@@ -601,9 +601,9 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$cooksd_plot <- renderPlotly({
+  output$cooksd_plot <- renderPlot({
     if(!is.null(cooksd$data)){
-      ggplotly(cooks_plot())
+      cooks_plot()
     }
   })
   
@@ -1416,7 +1416,8 @@ server <- function(input, output){
   
   output$vis_caps_out <- renderPlotly({
     if(vis_ready_checker$data){
-      ggplotly(vis_caps_plot())
+      viscapsggplotly <- ggplotly(vis_caps_plot())
+      style(viscapsggplotly, hoverinfo="none")
     }
   })
   
@@ -1673,7 +1674,8 @@ server <- function(input, output){
   
   output$nir_caps_out <- renderPlotly({
     if(nir_ready_checker$data){
-      ggplotly(nir_caps_plot())
+      nircapsggplotly <- ggplotly(nir_caps_plot())
+      style(nircapsggplotly, hoverinfo="none")
     }
   })
   
@@ -1971,34 +1973,34 @@ server <- function(input, output){
   output$oof_facetcolor <- renderUI({
       fluidRow(
         column(3,
-          uiOutput("oof_color")
+          uiOutput("oof_color_ui")
         ),
         column(3,
-          uiOutput("oof_account")
+          uiOutput("oof_account_ui")
         ),
         column(3,
-          uiOutput("oof_facet")
+          uiOutput("oof_facet_ui")
         )
       )
   })
   
-  output$oof_facet <- renderUI({
+  output$oof_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==3){
-      selectInput("oof_facet", "Y-axis Facet By:",des,des[1],width=180)
+      selectInput("oof_color", "Color By:",des,des[1],width=180)
     }
   })
   
-  output$oof_account <- renderUI({
+  output$oof_account_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)>1){
-      selectInput("oof_account", "X-axis Facet By:", des[!des %in% input$oof_facet],des[2],width=180)
+      selectInput("oof_account", "X-axis Facet By:", des[!des %in% input$oof_color],des[2],width=180)
     }
   })
   
-  output$oof_color <- renderUI({
+  output$oof_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_color","Color By:",des[!des %in% c(input$oof_facet,input$oof_account)],des[3],width=180)
+    selectInput("oof_facet","Y-axis Facet By:",des[!des %in% c(input$oof_color,input$oof_account)],des[3],width=180)
   })
   
   oof_fig <- reactive({
@@ -2090,34 +2092,34 @@ server <- function(input, output){
   output$er_facetcolor <- renderUI({
     fluidRow(
       column(3,
-             uiOutput("er_color")
+             uiOutput("er_color_ui")
       ),
       column(3,
-             uiOutput("er_account")
+             uiOutput("er_account_ui")
       ),
       column(3,
-             uiOutput("er_facet")
+             uiOutput("er_facet_ui")
       )
     )
   })
   
-  output$er_facet <- renderUI({
+  output$er_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==3){
-      selectInput("er_facet", "Y-axis Facet By:",des,des[1],width=180)
+      selectInput("er_color", "Color By:",des,des[1],width=180)
     }
   })
   
-  output$er_account <- renderUI({
+  output$er_account_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)>1){
-      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_facet],des[2],width=180)
+      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_color],des[2],width=180)
     }
   })
   
-  output$er_color <- renderUI({
+  output$er_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_color","Color By:",des[!des %in% c(input$er_facet,input$er_account)],des[3],width=180)
+    selectInput("er_facet","Y-axis Facet By:",des[!des %in% c(input$er_color,input$er_account)],des[3],width=180)
   })
   
   er_fig <- reactive({
