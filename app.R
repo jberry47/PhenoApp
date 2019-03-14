@@ -286,7 +286,7 @@ server <- function(input, output){
   imp_error_step <- reactiveValues(data=NULL)
 
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
     from$data <- "phenocv"
     res <- try(withCallingHandlers(withLogErrors({
       if(input$pheno_nir_q == "Yes"){
@@ -391,7 +391,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
     from$data <- "plantcv"
     res <- try(withCallingHandlers(withLogErrors({
     n <- 17
@@ -549,7 +549,7 @@ server <- function(input, output){
           actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
           textOutput("outliers_model"),
           textOutput("num_outliers"),
-          plotlyOutput("cooksd_plot"),
+          plotOutput("cooksd_plot"),
           uiOutput("remove_outliers_ui"),
           br(),
           uiOutput("download_cooks_ui")
@@ -601,9 +601,9 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$cooksd_plot <- renderPlotly({
+  output$cooksd_plot <- renderPlot({
     if(!is.null(cooksd$data)){
-      ggplotly(cooks_plot())
+      cooks_plot()
     }
   })
   
@@ -1244,7 +1244,7 @@ server <- function(input, output){
   # Color Helpers
   #***********************************************************************************************
   hist_avg <- function(data,start,stop){
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    des <- c(input$vis_joyplot_yaxis, input$vis_joyplot_facet)
     sub <- data
     test <- data.frame(do.call("rbind",lapply(split(sub,sub[,des[1]]),function(t){
       data.frame(do.call("rbind",lapply(split(t,t[,des[2]]),function(g){
@@ -1260,7 +1260,7 @@ server <- function(input, output){
   
   hist_sd <- function(data,day,start,stop){
     sub <- data
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    des <- c(input$vis_joyplot_yaxis, input$vis_joyplot_facet)
     test <- data.frame(do.call("rbind",lapply(split(sub,sub[,des[1]]),function(t){
       data.frame(do.call("rbind",lapply(split(t,t[,des[2]]),function(g){
         data.frame(do.call("rbind",lapply(split(g,g$DAP),function(m){
@@ -1310,21 +1310,7 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Joyplot",
-                     br(),
-                     fluidRow(
-                       column(width = 3,
-                          selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width=180)
-                       ),
-                       column(width = 3,
-                          selectInput("vis_joyplot_facet","Facet By:",des,width=180)
-                       ),
-                       column(width = 3,
-                          selectInput("vis_joyplot_yaxis","Y-Axis:",des,width=180)
-                          ),
-                       column(width = 3,
-                           sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
-                       )
-                     ),
+                     uiOutput("joyplot_facet_yaxis"),
                      fluidRow(
                        column(width=12,
                          plotOutput("vis_joyplot"),
@@ -1336,7 +1322,7 @@ server <- function(input, output){
                      )
             )
           )
-      ) 
+      )
     }
   })
   
@@ -1430,7 +1416,8 @@ server <- function(input, output){
   
   output$vis_caps_out <- renderPlotly({
     if(vis_ready_checker$data){
-      ggplotly(vis_caps_plot())
+      viscapsggplotly <- ggplotly(vis_caps_plot())
+      style(viscapsggplotly, hoverinfo="none")
     }
   })
   
@@ -1445,40 +1432,80 @@ server <- function(input, output){
      downloadButton("vis_caps_download","Download Plot")
    }
  })
+ 
+ output$joyplot_facet_yaxis <- renderUI({
+   fluidRow(
+     column(width = 3,
+            uiOutput("vis_joyplot_which_day_ui")
+     ),
+     column(width = 3,
+            uiOutput("vis_joyplot_facet_ui")
+     ),
+     column(width = 3,
+            uiOutput("vis_joyplot_yaxis_ui")
+     ),
+     column(width = 3,
+            uiOutput("hue_range_ui")   
+     )
+   )
+ })
+ 
+ output$vis_joyplot_which_day_ui <- renderUI({
+   selectInput("vis_joyplot_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width=180)
+ })
+ 
+ output$vis_joyplot_facet_ui <- renderUI({
+   des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+   selectInput("vis_joyplot_facet","Facet By:",des,width=180)
+ })
+ 
+ output$vis_joyplot_yaxis_ui <- renderUI({
+   des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+   selectInput("vis_joyplot_yaxis","Y-Axis:",des[!des %in% input$vis_joyplot_facet],width=180)
+ })
+ 
+ output$hue_range_ui <- renderUI({
+   sliderInput("hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
+ })
   
   vis_joyplot <- reactive({
-    res <- try(withCallingHandlers(withLogErrors({
-      imp_error_step$data <- "VIS Joyplot"
-      sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
-      test_avg <- hist_avg(sub,start = 2,stop = 181)
-      test_sd <- hist_sd(sub,start = 2,stop = 181)
-      test_avg <- data.frame(melt(t(test_avg)))
-      test_avg$sd <- data.frame(melt(t(test_sd)))[,3]
-      test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
-      test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
-      test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
-    }),warning=function(war){},error=function(err){
-       removeNotification(id)
-       report_error(err)
-    }))
-    if(class(res) != "try-error"){
-      ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
-        facet_grid(~meta2)+
-        geom_density_ridges_gradient(stat = "identity", aes(fill=bin),alpha=0.5, scale = 1)+
-        scale_fill_gradientn(colors=hue_pal(l=65)(360))+
-        scale_x_continuous(limits=c(input$hue_range[1],input$hue_range[2]),oob = rescale_none)+
-        scale_y_discrete(expand = c(0.01, 0))+
-        ylab("")+
-        xlab("Hue Channel")+
-        theme_light()+
-        theme(legend.position='none')+
-        theme(axis.text = element_text(size = 12),
-          axis.title= element_text(size = 18))+
-        theme(plot.title = element_text(hjust = 0.5),
-          strip.background=element_rect(fill="gray50"),
-          strip.text.x=element_text(size=12,color="white"),
-          strip.text.y=element_text(size=14,color="white"))+
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    if(any(is.null(c(input$vis_joyplot_which_day,input$vis_joyplot_facet,input$vis_joyplot_yaxis)), input$vis_joyplot_facet == input$vis_joyplot_yaxis)){
+      ggplot()
+    }else{
+      res <- try(withCallingHandlers(withLogErrors({
+        test_avg <- NULL
+        imp_error_step$data <- "VIS Joyplot"
+        sub <- vis$data[vis$data$DAP==input$vis_joyplot_which_day,]
+        test_avg <- hist_avg(sub,start = 2,stop = 181)
+        test_sd <- hist_sd(sub,start = 2,stop = 181)
+        test_avg <- data.frame(melt(t(test_avg)))
+        test_avg$sd <- data.frame(melt(t(test_sd)))[,3]
+        test_avg$bin <- (2*(as.numeric(str_sub(test_avg$Var1,2,4))))
+        test_avg$meta1 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[1]))
+        test_avg$meta2 <- unlist(lapply(strsplit(as.character(test_avg$Var2),"[.]"),function(i)i[2]))
+      }),warning=function(war){},error=function(err){
+         removeNotification(id)
+         report_error(err)
+      }))
+      if(class(res) != "try-error"){
+        ggplot(data=test_avg,aes(x=bin,y=meta1, height=value))+
+          facet_grid(~meta2)+
+          geom_density_ridges_gradient(stat = "identity", aes(fill=bin),alpha=0.5, scale = 1)+
+          scale_fill_gradientn(colors=hue_pal(l=65)(360))+
+          scale_x_continuous(limits=c(input$hue_range[1],input$hue_range[2]),oob = rescale_none)+
+          scale_y_discrete(expand = c(0.01, 0))+
+          ylab("")+
+          xlab("Hue Channel")+
+          theme_light()+
+          theme(legend.position='none')+
+          theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+          theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=12,color="white"),
+            strip.text.y=element_text(size=14,color="white"))+
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      }
     }
   })
   
@@ -1547,23 +1574,13 @@ server <- function(input, output){
                      )
             ),
             tabPanel(title="Faceted Heatmap",
-                     fluidRow(
-                       column(3,
-                        selectInput("nir_facet_day_start", "Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T),width=180)
-                       ),
-                       column(3,
-                        selectInput("nir_heat_facet","Facet By:",des,width=180)
-                       ),
-                       column(3,
-                        selectInput("nir_heat_yaxis","Y-Axis:",des,des[2],width=180)
-                       )
-                     ),
+                     uiOutput("nir_facet_xaxis"),
                      plotOutput("nir_heatmap_withfacet"),
                      div(id="container", uiOutput("download_nir_heatmap_facet_ui"),
                         actionButton("nir_heatmap_withfacet_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                      )
             )
-          )
+        )
       )
     }
   })
@@ -1657,7 +1674,8 @@ server <- function(input, output){
   
   output$nir_caps_out <- renderPlotly({
     if(nir_ready_checker$data){
-      ggplotly(nir_caps_plot())
+      nircapsggplotly <- ggplotly(nir_caps_plot())
+      style(nircapsggplotly, hoverinfo="none")
     }
   })
   
@@ -1688,6 +1706,34 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
+  output$nir_facet_xaxis <- renderUI({
+    fluidRow(
+      column(3,
+             uiOutput("nir_facet_day_start_ui")
+      ),
+      column(3,
+             uiOutput("nir_heat_facet_ui")
+      ),
+      column(3,
+             uiOutput("nir_heat_yaxis_ui")
+      )
+    )
+  })
+  
+  output$nir_facet_day_start_ui <- renderUI({
+    selectInput("nir_facet_day_start","Day Start",sort(unique(nir$data$DAP)),min(unique(nir$data$DAP),na.rm = T),width=180)
+  })
+  
+  output$nir_heat_facet_ui <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("nir_heat_facet","Facet By:",des,width=180)
+  })
+  
+  output$nir_heat_yaxis_ui <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("nir_heat_yaxis","Y-Axis:",des[!des %in% input$nir_heat_facet],des[2],width=180)
+  })
+  
   output$nir_heatmap_nofacet <- renderPlot({
     nir_heatmap_nofacet()
   })
@@ -1705,19 +1751,23 @@ server <- function(input, output){
   })
   
   nir_heatmap_facet <- reactive({
-    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
-    test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_facet_day_start),],as.formula(paste("intensityAVG~",input$nir_heat_yaxis,"+",input$nir_heat_facet,"+DAP")),FUN = function(i)mean(i,na.rm=T))
-    ggplot(test,aes_string("DAP",input$nir_heat_yaxis))+ 
-      facet_grid(~eval(parse(text=input$nir_heat_facet)))+
-      geom_tile(aes(fill=intensityAVG))+
-      scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
-      theme_light()+
-      theme(axis.text = element_text(size = 12),
-            axis.title= element_text(size = 18))+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background=element_rect(fill="gray50"),
-            strip.text.x=element_text(size=14,color="white"),
-            strip.text.y=element_text(size=14,color="white"))
+    if(any(is.null(c(input$nir_facet_day_start,input$nir_heat_facet,input$nir_heat_yaxis)),(input$nir_heat_facet == input$nir_heat_yaxis))){
+      ggplot()
+    }else{
+     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+      test <- aggregate(data=nir$data[nir$data$intensityAVG != 0 & nir$data$DAP >= as.numeric(input$nir_facet_day_start),],as.formula(paste("intensityAVG~",input$nir_heat_yaxis,"+",input$nir_heat_facet,"+DAP")),FUN = function(i)mean(i,na.rm=T))
+      ggplot(test,aes_string("DAP",input$nir_heat_yaxis))+ 
+        facet_grid(~eval(parse(text=input$nir_heat_facet)))+
+        geom_tile(aes(fill=intensityAVG))+
+        scale_fill_gradient2(high ="gray10",low= "#56B1F7",midpoint = mean(test$intensityAVG))+
+        theme_light()+
+        theme(axis.text = element_text(size = 12),
+              axis.title= element_text(size = 18))+
+        theme(plot.title = element_text(hjust = 0.5),
+              strip.background=element_rect(fill="gray50"),
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))
+    }
   })
   
   output$nir_heatmap_withfacet <- renderPlot({
@@ -1753,7 +1803,7 @@ server <- function(input, output){
                      textOutput("no_det"),       
                      sliderInput("iqv_range","Y-axis Range", -360, 360, c(-100,10), 1,width = 200),
                      br(),
-                     plotlyOutput("iqv_plot", width = 400),
+                     plotOutput("iqv_plot", width = 400),
                      div(id="container", uiOutput("iqv_download_ui"),
                           actionButton("iqv_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
                       )
@@ -1821,9 +1871,9 @@ server <- function(input, output){
             strip.text.y=element_text(size=14,color="white"))
   })
   
-  output$iqv_plot <- renderPlotly({
+  output$iqv_plot <- renderPlot({
     if(!is.null(merged$data$det)){
-      ggplotly(iqv())
+      iqv()
     }
   })
   
@@ -1923,34 +1973,34 @@ server <- function(input, output){
   output$oof_facetcolor <- renderUI({
       fluidRow(
         column(3,
-          uiOutput("oof_color")
+          uiOutput("oof_color_ui")
         ),
         column(3,
-          uiOutput("oof_account")
+          uiOutput("oof_account_ui")
         ),
         column(3,
-          uiOutput("oof_facet")
+          uiOutput("oof_facet_ui")
         )
       )
   })
   
-  output$oof_facet <- renderUI({
+  output$oof_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==3){
-      selectInput("oof_facet", "Y-axis Facet By:",des,des[1],width=180)
+      selectInput("oof_color", "Color By:",des,des[1],width=180)
     }
   })
   
-  output$oof_account <- renderUI({
+  output$oof_account_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)>1){
-      selectInput("oof_account", "X-axis Facet By:", des[!des %in% input$oof_facet],des[2],width=180)
+      selectInput("oof_account", "X-axis Facet By:", des[!des %in% input$oof_color],des[2],width=180)
     }
   })
   
-  output$oof_color <- renderUI({
+  output$oof_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_color","Color By:",des[!des %in% c(input$oof_facet,input$oof_account)],des[3],width=180)
+    selectInput("oof_facet","Y-axis Facet By:",des[!des %in% c(input$oof_color,input$oof_account)],des[3],width=180)
   })
   
   oof_fig <- reactive({
@@ -2042,34 +2092,34 @@ server <- function(input, output){
   output$er_facetcolor <- renderUI({
     fluidRow(
       column(3,
-             uiOutput("er_color")
+             uiOutput("er_color_ui")
       ),
       column(3,
-             uiOutput("er_account")
+             uiOutput("er_account_ui")
       ),
       column(3,
-             uiOutput("er_facet")
+             uiOutput("er_facet_ui")
       )
     )
   })
   
-  output$er_facet <- renderUI({
+  output$er_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)==3){
-      selectInput("er_facet", "Y-axis Facet By:",des,des[1],width=180)
+      selectInput("er_color", "Color By:",des,des[1],width=180)
     }
   })
   
-  output$er_account <- renderUI({
+  output$er_account_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)>1){
-      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_facet],des[2],width=180)
+      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_color],des[2],width=180)
     }
   })
   
-  output$er_color <- renderUI({
+  output$er_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_color","Color By:",des[!des %in% c(input$er_facet,input$er_account)],des[3],width=180)
+    selectInput("er_facet","Y-axis Facet By:",des[!des %in% c(input$er_color,input$er_account)],des[3],width=180)
   })
   
   er_fig <- reactive({
