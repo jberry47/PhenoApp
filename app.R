@@ -1321,6 +1321,18 @@ server <- function(input, output){
                          )
                        )
                      )
+            ),
+            tabPanel(title="Cumulative",
+              uiOutput("cumsum_params"),
+              fluidRow(
+                column(width=12,
+                  plotOutput("cumsum_plot"),
+                  br(),
+                  div(id="container", uiOutput("download_cumsum_plot_ui"),
+                    actionButton("cumsum_plot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                  )
+                )
+              )
             )
           )
       )
