@@ -1379,6 +1379,7 @@ server <- function(input, output){
       ggplot()
     }else{
       res <- try(withCallingHandlers(withLogErrors({
+        imp_error_step$data <- "VIS Cumulative Plot"
         des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
         ks <- vis$data[vis$data$DAP == as.numeric(input$cumsum_which_day),]
         ks[,2:181] <- t(apply(ks[,2:181],1,function(i)rescale(cumsum(i))))
