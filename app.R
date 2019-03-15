@@ -1378,28 +1378,35 @@ server <- function(input, output){
     if(any(is.null(c(input$cumsum_which_day,input$cumsum_facet,input$cumsum_color)), input$cumsum_facet == input$cumsum_color)){
       ggplot()
     }else{
-      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-      ks <- vis$data[vis$data$DAP == as.numeric(input$cumsum_which_day),]
-      ks[,2:181] <- t(apply(ks[,2:181],1,function(i)rescale(cumsum(i))))
-      ks <- ks[!apply(ks[,des],1,function(i){any(is.na(i))}),]
-      ks_melt <- melt(ks[,c(2:181,which(colnames(ks) %in% c("Barcodes",des,"DAP")))],id=c("Barcodes",des,"DAP"))
-      ks_melt$bin <- as.numeric(str_sub(ks_melt$variable,2,4))-2
-      fmla <- as.formula(paste0("value~bin+Barcodes+",paste(des,collapse = "+")))
-      ks_melt <- aggregate(data=ks_melt,fmla,"mean")
-      
-      ggplot(data=ks_melt[ks_melt$value != 0.5,], aes(bin,value))+
-        facet_wrap(~eval(parse(text=input$cumsum_facet)))+
-        geom_smooth(aes_string(color=input$cumsum_color),method = "loess",span=0.1,se=F)+
-        scale_x_continuous(limits=c(input$cumsum_hue_range[1],input$cumsum_hue_range[2]),oob = rescale_none)+
-        ylab("Cumulative Distribution")+
-        xlab("Hue Channel")+
-        theme_light()+
-        theme(axis.text = element_text(size = 12),
-          axis.title= element_text(size = 18))+
-        theme(plot.title = element_text(hjust = 0.5),
-          strip.background=element_rect(fill="gray50"),
-          strip.text.x=element_text(size=12,color="white"),
-          strip.text.y=element_text(size=14,color="white"))
+      res <- try(withCallingHandlers(withLogErrors({
+        imp_error_step$data <- "VIS Cumulative Plot"
+        des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+        ks <- vis$data[vis$data$DAP == as.numeric(input$cumsum_which_day),]
+        ks[,2:181] <- t(apply(ks[,2:181],1,function(i)rescale(cumsum(i))))
+        ks <- ks[!apply(ks[,des],1,function(i){any(is.na(i))}),]
+        ks_melt <- melt(ks[,c(2:181,which(colnames(ks) %in% c("Barcodes",des,"DAP")))],id=c("Barcodes",des,"DAP"))
+        ks_melt$bin <- as.numeric(str_sub(ks_melt$variable,2,4))-2
+        fmla <- as.formula(paste0("value~bin+Barcodes+",paste(des,collapse = "+")))
+        ks_melt <- aggregate(data=ks_melt,fmla,"mean")
+      }),warning=function(war){},error=function(err){
+        removeNotification(id)
+        report_error(err)
+      }))
+      if(class(res) != "try-error"){
+        ggplot(data=ks_melt[ks_melt$value != 0.5,], aes(bin,value))+
+          facet_wrap(~eval(parse(text=input$cumsum_facet)))+
+          geom_smooth(aes_string(color=input$cumsum_color),method = "loess",span=0.1,se=F)+
+          scale_x_continuous(limits=c(input$cumsum_hue_range[1],input$cumsum_hue_range[2]),oob = rescale_none)+
+          ylab("Cumulative Distribution")+
+          xlab("Hue Channel")+
+          theme_light()+
+          theme(axis.text = element_text(size = 12),
+            axis.title= element_text(size = 18))+
+          theme(plot.title = element_text(hjust = 0.5),
+            strip.background=element_rect(fill="gray50"),
+            strip.text.x=element_text(size=12,color="white"),
+            strip.text.y=element_text(size=14,color="white"))
+      }
     }
   })
   
