@@ -1,3 +1,4 @@
+library(data.table)
 library(reshape2)
 library(grid)
 library(stringr)
@@ -226,8 +227,8 @@ server <- function(input, output){
   
   
   get_color <- function(file_name,snapshot1,design1,start,stop){
-    color_data <- read.table(file_name,header = F,stringsAsFactors = F,sep = " ")
-    color_data <- color_data[,-ncol(color_data)]
+    color_data <- data.frame(fread(file_name,header = F,sep=" "),stringsAsFactors = F)
+#    color_data <- color_data[,-ncol(color_data)]
     color_data$id <- unlist(lapply(strsplit(color_data$V1,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
     color_data$imgname <- unlist(lapply(strsplit(color_data$V1,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))    
     color_data <- join(color_data,snapshot1[,c("id","Barcodes","timestamp")],by="id")
@@ -298,13 +299,13 @@ server <- function(input, output){
       withProgress(message = '', value = 0, {
         imp_error_step$data <- "PhenoCV - Reading design file"
         incProgress(1/n, detail = "Reading design file...")
-        assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
+        assoc <- data.frame(fread(input$phenocv_design_file$datapath,header = T),stringsAsFactors = F)
         assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
         design$data <- assoc
 
         imp_error_step$data <- "PhenoCV - Reading snapshot file"      
         incProgress(1/n, detail = "Reading snapshot file...")
-        img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+        img_to_barcode <- data.frame(fread(input$phenocv_snapshot_file$datapath,header = T),stringsAsFactors = F)
         img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
         colnames(img_to_barcode)[3] <- "Barcodes"
         snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
@@ -314,7 +315,7 @@ server <- function(input, output){
 
         imp_error_step$data <- "PhenoCV - Reading shapes file"
         incProgress(1/n, detail = "Reading shapes file...")
-        sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
+        sv_shapes <- data.frame(fread(input$phenocv_shapes_file$datapath,header = F,sep = " "),stringsAsFactors = F)
         sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
         
         if(ncol(sv_shapes)==21){
@@ -405,14 +406,14 @@ server <- function(input, output){
         
         imp_error_step$data <- "PlantCV - Reading design file"
         incProgress(1/n, detail = "Reading design file...")
-        assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
+        assoc <- data.frame(fread(input$plantcv_design_file$datapath,header=T),stringsAsFactors = F)
         assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
         design$data <- assoc
         removeNotification(id)
         
         imp_error_step$data <- "PlantCV - Reading snapshot file"
         incProgress(1/n, detail = "Reading snapshot file...")
-        img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+        img_to_barcode <- data.frame(fread(input$plantcv_snapshot_file$datapath,header = T),stringsAsFactors = F)
         img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
         colnames(img_to_barcode)[3] <- "Barcodes"
         snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
