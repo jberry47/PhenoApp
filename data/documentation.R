@@ -143,3 +143,12 @@ observeEvent(input$er_about, {
     footer = NULL
   ))
 })
+
+observeEvent(input$cumsum_plot_about, {
+  showModal(modalDialog(
+    title = "VIS Cumulatlive Distribution Plot",
+    p("This plot is another representation of the VIS joyplot data. Along the x-axis is the hue spectra, and the y-axis is showing the cumulative ditribution from left to right of the hue spectra. In this visualization, it is easier to identify differences amongst the grouping variables"),
+    easyClose = T,
+    footer = NULL
+  ))
+})
