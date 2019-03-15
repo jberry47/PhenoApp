@@ -1,3 +1,4 @@
+library(data.table)
 library(reshape2)
 library(grid)
 library(stringr)
@@ -226,8 +227,8 @@ server <- function(input, output){
   
   
   get_color <- function(file_name,snapshot1,design1,start,stop){
-    color_data <- read.table(file_name,header = F,stringsAsFactors = F,sep = " ")
-    color_data <- color_data[,-ncol(color_data)]
+    color_data <- data.frame(fread(file_name,header = F,sep=" "),stringsAsFactors = F)
+#    color_data <- color_data[,-ncol(color_data)]
     color_data$id <- unlist(lapply(strsplit(color_data$V1,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
     color_data$imgname <- unlist(lapply(strsplit(color_data$V1,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))    
     color_data <- join(color_data,snapshot1[,c("id","Barcodes","timestamp")],by="id")
@@ -298,13 +299,13 @@ server <- function(input, output){
       withProgress(message = '', value = 0, {
         imp_error_step$data <- "PhenoCV - Reading design file"
         incProgress(1/n, detail = "Reading design file...")
-        assoc <- read.csv(input$phenocv_design_file$datapath,header=T,stringsAsFactors = F)
+        assoc <- data.frame(fread(input$phenocv_design_file$datapath,header = T),stringsAsFactors = F)
         assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
         design$data <- assoc
 
         imp_error_step$data <- "PhenoCV - Reading snapshot file"      
         incProgress(1/n, detail = "Reading snapshot file...")
-        img_to_barcode <- read.csv(input$phenocv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+        img_to_barcode <- data.frame(fread(input$phenocv_snapshot_file$datapath,header = T),stringsAsFactors = F)
         img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
         colnames(img_to_barcode)[3] <- "Barcodes"
         snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
@@ -314,7 +315,7 @@ server <- function(input, output){
 
         imp_error_step$data <- "PhenoCV - Reading shapes file"
         incProgress(1/n, detail = "Reading shapes file...")
-        sv_shapes <- read.table(input$phenocv_shapes_file$datapath,header = F,stringsAsFactors = F,sep = " ")
+        sv_shapes <- data.frame(fread(input$phenocv_shapes_file$datapath,header = F,sep = " "),stringsAsFactors = F)
         sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
         
         if(ncol(sv_shapes)==21){
@@ -405,14 +406,14 @@ server <- function(input, output){
         
         imp_error_step$data <- "PlantCV - Reading design file"
         incProgress(1/n, detail = "Reading design file...")
-        assoc <- read.csv(input$plantcv_design_file$datapath,header=T,stringsAsFactors = F)
+        assoc <- data.frame(fread(input$plantcv_design_file$datapath,header=T),stringsAsFactors = F)
         assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
         design$data <- assoc
         removeNotification(id)
         
         imp_error_step$data <- "PlantCV - Reading snapshot file"
         incProgress(1/n, detail = "Reading snapshot file...")
-        img_to_barcode <- read.csv(input$plantcv_snapshot_file$datapath,header = T,stringsAsFactors = F)
+        img_to_barcode <- data.frame(fread(input$plantcv_snapshot_file$datapath,header = T),stringsAsFactors = F)
         img_to_barcode$timestamp <- as.POSIXct(strptime(img_to_barcode$timestamp,format = "%Y-%m-%d %H:%M:%S"))
         colnames(img_to_barcode)[3] <- "Barcodes"
         snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
@@ -1320,9 +1321,101 @@ server <- function(input, output){
                          )
                        )
                      )
+            ),
+            tabPanel(title="Cumulative",
+              uiOutput("cumsum_params"),
+              fluidRow(
+                column(width=12,
+                  withSpinner(plotlyOutput("cumsum_out"),type=5),
+                  br(),
+                  div(id="container", uiOutput("download_cumsum_plot_ui"),
+                    actionButton("cumsum_plot_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white")
+                  )
+                )
+              )
             )
           )
       )
+    }
+  })
+  
+  output$cumsum_params <- renderUI({
+    fluidRow(
+      column(width = 3,
+        uiOutput("cumsum_which_day_ui")
+      ),
+      column(width = 3,
+        uiOutput("cumsum_facet_ui")
+      ),
+      column(width = 3,
+        uiOutput("cumsum_color_ui")
+      ),
+      column(width = 3,
+        uiOutput("cumsum_hue_range_ui")   
+      )
+    )
+  })
+  
+  output$cumsum_hue_range_ui <- renderUI({
+    sliderInput("cumsum_hue_range","HUE Degree Range", 0, 360, c(0,150), 1)   
+  })
+  
+  output$cumsum_which_day_ui <- renderUI({
+    selectInput("cumsum_which_day","Which Day",sort(unique(vis$data$DAP)),max(unique(vis$data$DAP,na.rm = T)),width=180)
+  })
+  
+  output$cumsum_facet_ui <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("cumsum_facet","Facet By:",des,width=180)
+  })
+  
+  output$cumsum_color_ui <- renderUI({
+    des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+    selectInput("cumsum_color","Color by:",des[!des %in% input$cumsum_facet],width=180)
+  })
+  
+  cumsum_plot <- reactive({
+    if(any(is.null(c(input$cumsum_which_day,input$cumsum_facet,input$cumsum_color)), input$cumsum_facet == input$cumsum_color)){
+      ggplot()
+    }else{
+      des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
+      ks <- vis$data[vis$data$DAP == as.numeric(input$cumsum_which_day),]
+      ks[,2:181] <- t(apply(ks[,2:181],1,function(i)rescale(cumsum(i))))
+      ks <- ks[!apply(ks[,des],1,function(i){any(is.na(i))}),]
+      ks_melt <- melt(ks[,c(2:181,which(colnames(ks) %in% c("Barcodes",des,"DAP")))],id=c("Barcodes",des,"DAP"))
+      ks_melt$bin <- as.numeric(str_sub(ks_melt$variable,2,4))-2
+      fmla <- as.formula(paste0("value~bin+Barcodes+",paste(des,collapse = "+")))
+      ks_melt <- aggregate(data=ks_melt,fmla,"mean")
+      
+      ggplot(data=ks_melt[ks_melt$value != 0.5,], aes(bin,value))+
+        facet_wrap(~eval(parse(text=input$cumsum_facet)))+
+        geom_smooth(aes_string(color=input$cumsum_color),method = "loess",span=0.1,se=F)+
+        scale_x_continuous(limits=c(input$cumsum_hue_range[1],input$cumsum_hue_range[2]),oob = rescale_none)+
+        ylab("Cumulative Distribution")+
+        xlab("Hue Channel")+
+        theme_light()+
+        theme(axis.text = element_text(size = 12),
+          axis.title= element_text(size = 18))+
+        theme(plot.title = element_text(hjust = 0.5),
+          strip.background=element_rect(fill="gray50"),
+          strip.text.x=element_text(size=12,color="white"),
+          strip.text.y=element_text(size=14,color="white"))
+    }
+  })
+  
+  output$cumsum_out <- renderPlotly({
+    ggplotly(cumsum_plot())
+  })  
+  
+  output$cumsum_download <- downloadHandler(
+    filename = function() {"vis_cumsum_plot.png"},
+    content=function(file){
+      ggsave(file,cumsum_plot(),device = "png",width = 8,height = 4,dpi = 300)
+    })
+  
+  output$download_cumsum_plot_ui <- renderUI({
+    if(!is.null(vis$data)){
+      downloadButton("cumsum_download","Download Plot")
     }
   })
   
@@ -1503,8 +1596,7 @@ server <- function(input, output){
           theme(plot.title = element_text(hjust = 0.5),
             strip.background=element_rect(fill="gray50"),
             strip.text.x=element_text(size=12,color="white"),
-            strip.text.y=element_text(size=14,color="white"))+
-          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+            strip.text.y=element_text(size=14,color="white"))
       }
     }
   })
