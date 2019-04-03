@@ -186,7 +186,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                                          accept = c(".sqlite3")),
                                                uiOutput("plantcv_go_ui"),
                                                br(),
-                                               uiOutput("phenocv_download_merged_button")
+                                               uiOutput("plantcv_download_merged_button")
                                       )
                                     )
                                 ),
