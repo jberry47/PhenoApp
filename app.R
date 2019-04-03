@@ -184,7 +184,9 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                                                fileInput("plantcv_sql_path", "Choose sqlite3 database",
                                                          multiple = F,
                                                          accept = c(".sqlite3")),
-                                               uiOutput("plantcv_go_ui")
+                                               uiOutput("plantcv_go_ui"),
+                                               br(),
+                                               uiOutput("plantcv_download_merged_button")
                                       )
                                     )
                                 ),
@@ -253,13 +255,6 @@ server <- function(input, output){
     }
   })
   
-  output$plantcv_go_ui <- renderUI({
-    b <- c(input$plantcv_sql_path$name,input$plantcv_design_file$name,input$plantcv_snapshot_file$name)
-    if(length(b) == 3){
-      actionButton("plantcv_merge","Merge Data")
-    }
-  })
-  
   output$phenocv_download_merged_button <- renderUI({
     if(!is.null(merged$data)){
       downloadButton("phenocv_merged_table","Download Merged Data (tsv)")
@@ -272,6 +267,28 @@ server <- function(input, output){
       write.table(merged$data,file,row.names = FALSE, quote = FALSE,sep = "\t")
     }
   )
+  
+  output$plantcv_go_ui <- renderUI({
+    b <- c(input$plantcv_sql_path$name,input$plantcv_design_file$name,input$plantcv_snapshot_file$name)
+    if(length(b) == 3){
+      actionButton("plantcv_merge","Merge Data")
+    }
+  })
+  
+  output$plantcv_download_merged_button <- renderUI({
+    if(!is.null(merged$data)){
+      downloadButton("plantcv_merged_table","Download Merged Data (tsv)")
+    }
+  })
+  
+  output$plantcv_merged_table <- downloadHandler(
+    filename = function() {"plantcv_merged_data.tsv"},
+    content = function(file){
+      write.table(merged$data,file,row.names = FALSE, quote = FALSE,sep = "\t")
+    }
+  )
+  
+  
   
   #***********************************************************************************************
   # Merging Files Action
