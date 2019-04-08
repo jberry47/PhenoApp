@@ -965,7 +965,6 @@ server <- function(input, output){
   output$shapes_anova_download <- downloadHandler(
     filename = function() {"shapes_anova.png"},
     content=function(file){
-      pdf(NULL)
       ggsave(file,shapes_anova(),device = "png",width = 15,height = 6,dpi = 300)
     })
   
