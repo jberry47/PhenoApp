@@ -21,6 +21,8 @@ library(car)
 library(survival)
 library(vegan)
 library(shinycssloaders)
+library(corrplot)
+library(cowplot)
 
 
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
@@ -306,6 +308,7 @@ server <- function(input, output){
   observeEvent(input$phenocv_merge,{
     merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
     from$data <- "phenocv"
+    disable("phenocv_merge")
     res <- try(withCallingHandlers(withLogErrors({
       if(input$pheno_nir_q == "Yes"){
         n <- 12
@@ -407,10 +410,15 @@ server <- function(input, output){
     }))
   })
   
+  observeEvent({
+    !is.null(merged$data)
+  },{enable("phenocv_merge")})
+  
   #Data import
   observeEvent(input$plantcv_merge,{
     merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
     from$data <- "plantcv"
+    disable("plantcv_merge")
     res <- try(withCallingHandlers(withLogErrors({
     n <- 17
       withProgress(message = '', value = 0, {
@@ -553,6 +561,11 @@ server <- function(input, output){
       report_error(err)
     }))
   })
+  
+  observeEvent({
+    !is.null(merged$data)
+  },{enable("plantcv_merge")})
+  
   
   #***********************************************************************************************
   # Outlier detection box
@@ -702,7 +715,7 @@ server <- function(input, output){
                         )
                        )
                      ),
-                     withSpinner(plotlyOutput("anova_plot"), type = 5),
+                     withSpinner(plotOutput("anova_plot"), type = 5),
                      uiOutput("download_shapes_anova_ui")
             ),
             tabPanel(title="Temporal ANOVA",
@@ -797,6 +810,8 @@ server <- function(input, output){
   #***********************************************************************************************
   anova_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova,{
+    anova_dat$data <- NULL
+    disable("make_anova")
     res <- try(withCallingHandlers(withLogErrors({
       imp_error_step$data <- "Shapes Anova"
       id <- showNotification(h3("Calculating variances..."), duration = NULL)
@@ -866,46 +881,91 @@ server <- function(input, output){
     }))
   })
   
+  observeEvent({
+    !is.null(anova_dat$data)
+  },enable("make_anova"))
+  
   shapes_anova <- reactive({
     if(!is.null(anova_dat$data)){
       des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
       p <- ggplot(data=anova_dat$data,aes(Shape,value*100))+
         geom_bar(stat = "identity",aes(fill=variable))+
         ylab("Variance Explained (%)")+
+        guides(fill=guide_legend(title=""))+
         theme_bw()+
+        theme(plot.margin=unit(c(0,-2.5,-3,0.7), "cm"))+
+        scale_y_continuous(expand=c(0,0))+
         theme(strip.background=element_rect(fill="gray50"),
               strip.text.x=element_text(size=14,color="white"),
               strip.text.y=element_text(size=14,color="white"))+
         theme(axis.text = element_text(size = 14),
-              axis.title.y= element_text(size = 18),
-              axis.title.x = element_blank())+
-        theme(axis.ticks.length=unit(0.2,"cm"),
-              plot.margin=unit(c(0.1,0.25,0.25,0.48), "cm"))+
+              axis.title.y= element_blank(),
+              axis.title.x = element_text(vjust=15,size=14))+
+        theme(axis.ticks.length=unit(0.2,"cm"))+
         theme(panel.border = element_rect(colour = "gray60", fill=NA, size=1,linetype = 1))+
-        theme(legend.position = "top")+
-        guides(fill = guide_legend(title = ""))+
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        theme(legend.position = "top",
+              legend.margin = margin(0.5,unit="cm"))+
+        theme(axis.text.x = element_text(hjust = 1))
+      
+      corr <- cor(apply(shapes$data[,!(colnames(shapes$data) %in% c("meta","image","image_id","in_bounds", "oof"))],2,as.numeric),use="complete.obs",method="spearman")
+      unexp <- anova_dat$data[anova_dat$data$variable == "Unexplained",]
+      corr <- corr[as.character(unexp$Shape[order(unexp$value)]),as.character(unexp$Shape[order(unexp$value)])]
+      #corr[lower.tri(corr)] <- NA
+      corr <- na.omit(melt(corr))
+      
+      corr$Var1 <- ordered(corr$Var1,levels=unexp$Shape[order(unexp$value)])
+      corr$Var2 <- ordered(corr$Var2,levels=unexp$Shape[order(unexp$value)])
+      
+      unq_corr <- data.frame(Var1=unique(corr$Var1),Var2=(unique(corr$Var1)))
+      
+      q <- ggplot(corr,aes(Var1,Var2))+
+        geom_point(aes(color=value),size=5)+
+        #geom_text(data=unq_corr,aes(label=Var2),check_overlap = T,nudge_x = -0.75,hjust=1,size=4.25)+
+        
+        expand_limits(x=-4)+
+        scale_color_gradient2(limits=c(-1,1))+
+        theme_void()+
+        theme(legend.position="top")
+      
+      
+      
+      q <- q+  theme(plot.margin=unit(c(0.2,4,0,0), "cm"))+
+        guides(color = guide_colourbar(barwidth = 15,title = NULL))+
+        theme(axis.text.x = element_text(size = 12,color="black"),
+              axis.text.y = element_blank(),
+              axis.title= element_blank())+ 
+        theme(strip.background=element_rect(fill="gray50"),
+              strip.text.x=element_text(size=14,color="white"),
+              strip.text.y=element_text(size=14,color="white"))+
+        theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust=0.5))
+      
       if(length(des) == 2){
         p <- p+scale_fill_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))
+        p <- p+coord_flip()
+        p <- p+theme(plot.margin=unit(c(0,-3.2,-3,0.7), "cm"))
       }else{
         hues <- seq(15, 375, length = length(des) + 1)
         cols <- hcl(h = hues, l = 65, c = 100)[1:length(des)]
         p <- p+scale_fill_manual(values = c("gray60",cols))
-      }
-      p
+        p <- p+coord_flip()
+        }
+      #pq <- grid.arrange(q,p,nrow=1,widths=c(1,0.75))
+      #pq <- as.ggplot(grid.draw(cbind(ggplotGrob(q), ggplotGrob(p), size = "first")))
+      pq <- plot_grid(p, q, nrow=1,ncol=2, align="h",rel_widths=1)
+      pq
     }
   })
   
-  output$anova_plot <- renderPlotly({
+  output$anova_plot <- renderPlot({
     if(!is.null(anova_dat$data)){
-      ggplotly(shapes_anova())
+      shapes_anova()
     }
   })
   
   output$shapes_anova_download <- downloadHandler(
     filename = function() {"shapes_anova.png"},
     content=function(file){
-      ggsave(file,shapes_anova(),device = "png",width = 8,height = 4,dpi = 300)
+      ggsave(file,shapes_anova(),device = "png",width = 15,height = 6,dpi = 300)
     })
   
   output$download_shapes_anova_ui <- renderUI({
@@ -919,6 +979,8 @@ server <- function(input, output){
   #***********************************************************************************************
   anova_ts_dat <- reactiveValues(data=NULL)
   observeEvent(input$make_anova_ts,{
+    anova_ts_dat$data <- NULL
+    disable("make_anova_ts")
     res <- try(withCallingHandlers(withLogErrors({
       imp_error_step$data <- "Temporal Anova"
       id <- showNotification(h3("Calculating variances..."), duration = NULL)
@@ -990,6 +1052,10 @@ server <- function(input, output){
       report_error(err)
     }))
   })
+  
+  observeEvent({
+    !is.null(anova_ts_dat$data)
+  },enable("make_anova_ts"))
   
   anova_ts <- reactive({
     if(!is.null(anova_ts_dat$data)){
@@ -1343,6 +1409,7 @@ server <- function(input, output){
               uiOutput("cumsum_params"),
               fluidRow(
                 column(width=12,
+                  uiOutput("cumsum_collapse"),
                   withSpinner(plotlyOutput("cumsum_out"),type=5),
                   br(),
                   div(id="container", uiOutput("download_cumsum_plot_ui"),
@@ -1389,6 +1456,14 @@ server <- function(input, output){
   output$cumsum_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     selectInput("cumsum_color","Color by:",des[!des %in% input$cumsum_facet],width=180)
+  })
+  
+  output$cumsum_collapse <- renderText({
+    des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+    left <- des[!(des %in% c(input$cumsum_facet,input$cumsum_color))]
+    if(!length(left) == 0){
+      paste0("Trend lines are collapsed over: ",paste(left,collapse=" ")) 
+    }
   })
   
   cumsum_plot <- reactive({
