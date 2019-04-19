@@ -2238,9 +2238,7 @@ server <- function(input, output){
   
   output$oof_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(length(des)==3){
-      selectInput("oof_color", "Color By:",des,des[1],width=180)
-    }
+    selectInput("oof_color", "Color By:",des,des[1],width=180)
   })
   
   output$oof_account_ui <- renderUI({
@@ -2252,7 +2250,9 @@ server <- function(input, output){
   
   output$oof_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_facet","Y-axis Facet By:",des[!des %in% c(input$oof_color,input$oof_account)],des[3],width=180)
+    if(length(des)==3){
+      selectInput("oof_facet","Y-axis Facet By:",des[!des %in% c(input$oof_color,input$oof_account)],des[3],width=180)
+      }
   })
   
   oof_fig <- reactive({
@@ -2357,21 +2357,21 @@ server <- function(input, output){
   
   output$er_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(length(des)==3){
-      selectInput("er_color", "Color By:",des,des[1],width=180)
-    }
+    selectInput("er_color", "Color By:",des,des[1],width=180)
   })
   
   output$er_account_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)>1){
-      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_color],des[2],width=180)
+      selectInput("er_account", "X-axis Facet By:", des[!des %in% input$er_color],des[2],width=180)
     }
   })
   
   output$er_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_facet","Y-axis Facet By:",des[!des %in% c(input$er_color,input$er_account)],des[3],width=180)
+    if(length(des)==3){
+      selectInput("er_facet","Y-axis Facet By:",des[!des %in% c(input$er_color,input$er_account)],des[3],width=180)
+    }
   })
   
   er_fig <- reactive({
