@@ -306,7 +306,7 @@ server <- function(input, output){
   imp_error_step <- reactiveValues(data=NULL)
 
   observeEvent(input$phenocv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL#; diag_fmla$data <- NULL
     from$data <- "phenocv"
     disable("phenocv_merge")
     res <- try(withCallingHandlers(withLogErrors({
@@ -416,7 +416,7 @@ server <- function(input, output){
   
   #Data import
   observeEvent(input$plantcv_merge,{
-    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL
+    merged$data <- NULL; design$data <- NULL; shapes$data <- NULL; vis$data <- NULL; nir$data <- NULL; empties1$data <- NULL; from$data <- NULL; snapshot$data <- NULL; nir_ready_checker$data <- FALSE; vis_ready_checker$data <- FALSE; nir_caps$data <- NULL; vis_caps$data <- NULL; outlier_check$data <- FALSE; cooksd$data <- NULL; outlier_fmla$data <- NULL; imp_error_step$data <- NULL; anova_dat$data <- NULL; anova_ts_dat$data  <- NULL; diag_fmla$data <- NULL
     from$data <- "plantcv"
     disable("plantcv_merge")
     res <- try(withCallingHandlers(withLogErrors({
@@ -572,25 +572,40 @@ server <- function(input, output){
   #***********************************************************************************************
   output$outlier_removal <- renderUI({
     if(!is.null(merged$data)){
-      box(width=10,title = "Outlier Detection and Removal",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
-          p("This step is not required"),
-          if(!outlier_check$data){
-            actionButton("detect_outliers","Detect Outliers")
-            },
-          actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
-          textOutput("outliers_model"),
-          textOutput("num_outliers"),
-          plotOutput("cooksd_plot"),
-          uiOutput("remove_outliers_ui"),
-          br(),
-          uiOutput("download_cooks_ui")
-      ) 
+      box(width=10,title = "Statistical Diagnostics",solidHeader = T,status = 'success',collapsible = TRUE,collapsed = TRUE,
+          tabsetPanel(
+            tabPanel(title = "Outlier Detection/Removal",
+                p("This step is not required"),
+                if(!outlier_check$data){
+                  actionButton("detect_outliers","Detect Outliers")
+                },
+                actionButton("outlier_about",label = NULL,icon("question-circle"),style="background-color: white; border-color: white"),
+                textOutput("outliers_model"),
+                textOutput("num_outliers"),
+                plotOutput("cooksd_plot"),
+                uiOutput("remove_outliers_ui"),
+                br(),
+                uiOutput("download_cooks_ui")
+            )
+            # tabPanel(title = "Diagnostics",
+            #     uiOutput("diag_warning"),
+            #     actionButton("make_diag_plot","Plot Diagnostics"),
+            #     withSpinner(plotOutput("diag_plot"),type=5),
+            #     uiOutput("download_diag_plot")
+            # )
+          )
+      )
     }
   })
-  
-  cooksd <- reactiveValues(data=NULL)
-  outlier_fmla <- reactiveValues(data=NULL)
-  observeEvent(input$detect_outliers,{
+
+  # output$diag_warning <- renderText({
+  #   paste("This may take a few minutes to calculate and plot.")
+  # })
+
+   diag_fmla <- reactiveValues(data=NULL)
+   cooksd <- reactiveValues(data=NULL)
+   outlier_fmla <- reactiveValues(data=NULL)
+   observeEvent(input$detect_outliers,{
     res <- try(withCallingHandlers(withLogErrors({
       imp_error_step$data <- "Detect outliers"
       disable("detect_outliers")
@@ -605,6 +620,54 @@ server <- function(input, output){
       report_error(err)
     }))
   })
+
+  # observeEvent(input$make_diag_plot,{
+  #   disable("make_diag_plot")
+  #   diag_fmla$data <- NULL
+  #   #res <- try(withCallingHandlers(withLogERrors({
+  #     des <- colnames(design$data)[!(colnames(design$data) %in% "Barcodes")]
+  #     diag <- paste("as.numeric(area) ~0+",paste(c(des,"as.factor(DAP)"),collapse = ":"))
+  #     d_fmla <- as.formula(diag)
+  #     diag_fmla$data <- lm(data=merged$data,d_fmla)
+  #     print("test")
+  #   #}),warning=function(war){},error=function(err){
+  #    # removeNotification(id)
+  #     #report_error(err)
+  #   #}))
+  # })
+
+  # observeEvent({
+  #   !is.null(diag_fmla$data)
+  # },enable("make_diag_plot"))
+  # 
+  # dia_plot <- reactive({
+  #   dat <- diag_fmla$data
+  #   rstd <- rstandard(dat)
+  #   print(head(rstd))
+  #   fit <- fitted(dat)
+    # a <- plot(fit,rstd)
+    #      abline(0,0,col="red")
+    # b <- plot(qqnorm(rstd))
+
+      # c <- ggplot(dat, aes(fit, sqrt(abs(rstd))))+
+      #         geom_point(na.rm=TRUE)+
+      #         ggtitle("Scale Location")
+      #
+      # d <- ggplot(dat, aes(.hat, rstd))+
+      #         geom_point(aes(size=.cooksd), na.rm=TRUE)+
+      #         ggtitle("Residual vs Leverage")
+    
+  #   par(mfrow=c(1,2))
+  #   plot(fit,rstd)
+  #   plot(qqnorm(rstd))
+  #   par(mfrow=c(1,1))
+  # })
+  # 
+  # output$diag_plot <- renderPlot({
+  #   if(!is.null(diag_fmla$data)){
+  #     dia_plot()
+  #   }
+  # })
   
   output$num_outliers <- renderText({
     if(!is.null(cooksd$data)){
@@ -942,7 +1005,7 @@ server <- function(input, output){
       if(length(des) == 2){
         p <- p+scale_fill_manual(values = c("gray60",muted("blue",l=35,c=100),"orange","purple"))
         p <- p+coord_flip()
-        p <- p+theme(plot.margin=unit(c(0,-3.2,-3,0.7), "cm"))
+        p <- p+theme(plot.margin=unit(c(0,-2.5,-3,0.7), "cm"))
       }else{
         hues <- seq(15, 375, length = length(des) + 1)
         cols <- hcl(h = hues, l = 65, c = 100)[1:length(des)]
@@ -2177,9 +2240,7 @@ server <- function(input, output){
   
   output$oof_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(length(des)==3){
-      selectInput("oof_color", "Color By:",des,des[1],width=180)
-    }
+    selectInput("oof_color", "Color By:",des,des[1],width=180)
   })
   
   output$oof_account_ui <- renderUI({
@@ -2191,7 +2252,9 @@ server <- function(input, output){
   
   output$oof_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("oof_facet","Y-axis Facet By:",des[!des %in% c(input$oof_color,input$oof_account)],des[3],width=180)
+    if(length(des)==3){
+      selectInput("oof_facet","Y-axis Facet By:",des[!des %in% c(input$oof_color,input$oof_account)],des[3],width=180)
+      }
   })
   
   oof_fig <- reactive({
@@ -2296,21 +2359,21 @@ server <- function(input, output){
   
   output$er_color_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    if(length(des)==3){
-      selectInput("er_color", "Color By:",des,des[1],width=180)
-    }
+    selectInput("er_color", "Color By:",des,des[1],width=180)
   })
   
   output$er_account_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
     if(length(des)>1){
-      selectInput("er_account", "X-axis Facet By:",des[!des %in% input$er_color],des[2],width=180)
+      selectInput("er_account", "X-axis Facet By:", des[!des %in% input$er_color],des[2],width=180)
     }
   })
   
   output$er_facet_ui <- renderUI({
     des <- sort(colnames(design$data)[!(colnames(design$data) %in% "Barcodes")])
-    selectInput("er_facet","Y-axis Facet By:",des[!des %in% c(input$er_color,input$er_account)],des[3],width=180)
+    if(length(des)==3){
+      selectInput("er_facet","Y-axis Facet By:",des[!des %in% c(input$er_color,input$er_account)],des[3],width=180)
+    }
   })
   
   er_fig <- reactive({
