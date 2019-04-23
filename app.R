@@ -594,15 +594,15 @@ server <- function(input, output){
             #     uiOutput("download_diag_plot")
             # )
           )
-      ) 
+      )
     }
   })
-  
+
   # output$diag_warning <- renderText({
   #   paste("This may take a few minutes to calculate and plot.")
   # })
-  # 
-  # diag_fmla <- reactiveValues(data=NULL)
+
+   diag_fmla <- reactiveValues(data=NULL)
    cooksd <- reactiveValues(data=NULL)
    outlier_fmla <- reactiveValues(data=NULL)
    observeEvent(input$detect_outliers,{
@@ -620,7 +620,7 @@ server <- function(input, output){
       report_error(err)
     }))
   })
-  # 
+
   # observeEvent(input$make_diag_plot,{
   #   disable("make_diag_plot")
   #   diag_fmla$data <- NULL
@@ -635,7 +635,7 @@ server <- function(input, output){
   #     #report_error(err)
   #   #}))
   # })
-  # 
+
   # observeEvent({
   #   !is.null(diag_fmla$data)
   # },enable("make_diag_plot"))
@@ -645,20 +645,22 @@ server <- function(input, output){
   #   rstd <- rstandard(dat)
   #   print(head(rstd))
   #   fit <- fitted(dat)
-  #   # a <- plot(fit,rstd)
-  #   #      abline(0,0,col="red")
-  #   # b <- plot(qqnorm(rstd))
-  # 
-  #     # c <- ggplot(dat, aes(fit, sqrt(abs(rstd))))+
-  #     #         geom_point(na.rm=TRUE)+
-  #     #         ggtitle("Scale Location")
-  #     # 
-  #     # d <- ggplot(dat, aes(.hat, rstd))+
-  #     #         geom_point(aes(size=.cooksd), na.rm=TRUE)+
-  #     #         ggtitle("Residual vs Leverage")
-  #     
-  #   grid.draw(plot(qqnorm(rstd)))
-  # 
+    # a <- plot(fit,rstd)
+    #      abline(0,0,col="red")
+    # b <- plot(qqnorm(rstd))
+
+      # c <- ggplot(dat, aes(fit, sqrt(abs(rstd))))+
+      #         geom_point(na.rm=TRUE)+
+      #         ggtitle("Scale Location")
+      #
+      # d <- ggplot(dat, aes(.hat, rstd))+
+      #         geom_point(aes(size=.cooksd), na.rm=TRUE)+
+      #         ggtitle("Residual vs Leverage")
+    
+  #   par(mfrow=c(1,2))
+  #   plot(fit,rstd)
+  #   plot(qqnorm(rstd))
+  #   par(mfrow=c(1,1))
   # })
   # 
   # output$diag_plot <- renderPlot({
