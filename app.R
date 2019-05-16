@@ -24,6 +24,7 @@ library(shinycssloaders)
 library(corrplot)
 library(cowplot)
 
+pdf(NULL)
 
 ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                     dashboardHeader(
