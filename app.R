@@ -204,7 +204,7 @@ ui <- dashboardPage(skin="black", title="Phenotyper Analysis Tool",
                       )
                     )
 
-server <- function(input, output){
+server <- function(input, output, session){
   report_error <- function(err){
     locs <- extractStackTrace(conditionStackTrace(err))$loc
     loc_lines <- max(as.numeric(str_sub(na.omit(unlist(lapply(strsplit(locs,"#"),function(i) i[2]))),end = -2)))
@@ -260,14 +260,29 @@ server <- function(input, output){
   
   output$phenocv_download_merged_button <- renderUI({
     if(!is.null(merged$data)){
-      downloadButton("phenocv_merged_table","Download Merged Data (tsv)")
+      downloadButton("phenocv_merged_table","Download Merged Data (.zip)")
     }
   })
   
   output$phenocv_merged_table <- downloadHandler(
-    filename = function() {"phenocv_merged_data.tsv"},
+    filename = function() {"PhenoAnalyzer_data.zip"},
     content = function(file){
-      write.table(merged$data,file,row.names = FALSE, quote = FALSE,sep = "\t")
+      id <- showNotification(h3("Writing files..."), duration = NULL)
+      write.table(merged$data,paste0("data/shiny_write/temp/",session$token,"-shapes.tsv"),row.names = FALSE, quote = FALSE,sep = "\t")
+      if(!is.null(vis$data)){
+        write.table(vis$data,paste0("data/shiny_write/temp/",session$token,"-vis.tsv"),row.names = FALSE, quote = FALSE,sep = "\t") 
+      }
+      if(!is.null(nir$data)){
+        write.table(nir$data,paste0("data/shiny_write/temp/",session$token,"-nir.tsv"),row.names = FALSE, quote = FALSE,sep = "\t")
+      }
+      removeNotification(id)
+      id <- showNotification(h3("Zipping files..."), duration = NULL)
+      zip(flags="-j",zipfile = paste0("data/shiny_write/",session$token,"-data.zip"),files=as.character(list.files("data/shiny_write/temp",full.names = T)))
+      removeNotification(id)
+      file.copy(paste0("data/shiny_write/",session$token,"-data.zip"),file)
+      id <- showNotification(h3("Done!"), duration = 1)
+      file.remove(paste0("data/shiny_write/",session$token,"-data.zip"))
+      sapply(list.files("data/shiny_write/temp",full.names = T),function(i) file.remove(i))
     }
   )
   
@@ -280,17 +295,31 @@ server <- function(input, output){
   
   output$plantcv_download_merged_button <- renderUI({
     if(!is.null(merged$data)){
-      downloadButton("plantcv_merged_table","Download Merged Data (tsv)")
+      downloadButton("plantcv_merged_table","Download Merged Data (.zip)")
     }
   })
   
   output$plantcv_merged_table <- downloadHandler(
-    filename = function() {"plantcv_merged_data.tsv"},
+    filename = function() {"PhenoAnalyzer_data.zip"},
     content = function(file){
-      write.table(merged$data,file,row.names = FALSE, quote = FALSE,sep = "\t")
+      id <- showNotification(h3("Writing files..."), duration = NULL)
+      write.table(merged$data,paste0("data/shiny_write/temp/",session$token,"-shapes.tsv"),row.names = FALSE, quote = FALSE,sep = "\t")
+      if(!is.null(vis$data)){
+        write.table(vis$data,paste0("data/shiny_write/temp/",session$token,"-vis.tsv"),row.names = FALSE, quote = FALSE,sep = "\t") 
+      }
+      if(!is.null(nir$data)){
+        write.table(nir$data,paste0("data/shiny_write/temp/",session$token,"-nir.tsv"),row.names = FALSE, quote = FALSE,sep = "\t")
+      }
+      removeNotification(id)
+      id <- showNotification(h3("Zipping files..."), duration = NULL)
+      zip(flags="-j",zipfile = paste0("data/shiny_write/",session$token,"-data.zip"),files=as.character(list.files("data/shiny_write/temp",full.names = T)))
+      removeNotification(id)
+      file.copy(paste0("data/shiny_write/",session$token,"-data.zip"),file)
+      id <- showNotification(h3("Done!"), duration = 1)
+      file.remove(paste0("data/shiny_write/",session$token,"-data.zip"))
+      sapply(list.files("data/shiny_write/temp",full.names = T),function(i) file.remove(i))
     }
   )
-  
   
   
   #***********************************************************************************************
@@ -349,58 +378,48 @@ server <- function(input, output){
         
         sv_shapes$id <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"snapshot")],"snapshot")[[1]][2]))
         sv_shapes$imgname <- unlist(lapply(strsplit(sv_shapes$meta,"/"),function(i) strsplit(i[str_detect(i,"png")],"[.]")[[1]][1]))
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PhenoCV - Joining shapes and snapshot"
         incProgress(1/n, detail = "Joining shapes and snapshot...")
         sv_shapes <- join(sv_shapes,img_to_barcode[,c("id","Barcodes","timestamp")],by="id")
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PhenoCV - Joining shapes and design"
         incProgress(1/n, detail = "Joining shapes and design...")
         sv_shapes <- join(sv_shapes,assoc_empty,by="Barcodes")
         sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PhenoCV - Adding time columns"
         incProgress(1/n, detail = "Adding time columns...")
         sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
         beg <- min(sv_shapes$timestamp)
         sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
         sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PhenoCV - Removing empty pots"
         incProgress(1/n, detail = "Removing empty pots...")
         empties <-names(which(lapply(split(sv_shapes,sv_shapes$Barcodes),function(i) all(i$area < 10))==T))
         empties1$data <- data.frame("Barcodes" = empties, stringsAsFactors = F)
         sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
         sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN    
-        removeNotification(id)
-        
+
         merged$data <- sv_shapes
         
         imp_error_step$data <- "PhenoCV - Reading VIS color data"
         incProgress(1/n, detail = "Reading VIS color data...")
         vis$data <- get_color(input$phenocv_color_file$datapath,img_to_barcode,assoc_empty,2,181)
-        removeNotification(id)
         incProgress(1/n, detail = "Removing empty pots...")
         vis$data <- vis$data[!(vis$data$Barcodes %in% empties),]
         vis$data <- vis$data[rowSums(sapply(colnames(assoc),function(i) !is.na(vis$data[,i])))==ncol(assoc),]
-        removeNotification(id)
-        
+
         if(input$pheno_nir_q == "Yes"){
           imp_error_step$data <- "PhenoCV - Reading NIR color data"
           incProgress(1/n, detail = "Reading NIR color data...")
           nir$data <- get_color(input$phenocv_nir_file$datapath,img_to_barcode,assoc_empty,2,256)
-          removeNotification(id)
           incProgress(1/n, detail = "Removing empty pots...")
           nir$data <- nir$data[!(nir$data$Barcodes %in% empties),]
           nir$data <- nir$data[rowSums(sapply(colnames(assoc),function(i) !is.na(nir$data[,i])))==ncol(assoc),]
-          removeNotification(id)
           incProgress(1/n, detail = "Calculating NIR average...")
           nir$data$intensityAVG <- apply(nir$data[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
-          removeNotification(id)
         }
         id <- showNotification(h3("Done!"), duration = 1)
       })
@@ -428,15 +447,13 @@ server <- function(input, output){
         db <- input$plantcv_sql_path$datapath
         drv <- dbDriver("SQLite")
         conn <- dbConnect(drv, dbname = db)
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PlantCV - Reading design file"
         incProgress(1/n, detail = "Reading design file...")
         assoc <- data.frame(fread(input$plantcv_design_file$datapath,header=T),stringsAsFactors = F)
         assoc_empty <- assoc[rowSums(sapply(colnames(assoc),function(i) !(assoc[,i] %in% c("Blank","Empty","blank","empty"))))==ncol(assoc),]
         design$data <- assoc
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PlantCV - Reading snapshot file"
         incProgress(1/n, detail = "Reading snapshot file...")
         img_to_barcode <- data.frame(fread(input$plantcv_snapshot_file$datapath,header = T),stringsAsFactors = F)
@@ -444,8 +461,7 @@ server <- function(input, output){
         colnames(img_to_barcode)[3] <- "Barcodes"
         snapshot1 <- join(assoc_empty,img_to_barcode, by = "Barcodes")
         snapshot$data <- snapshot1[-snapshot1$weight.before < 0,]
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PlantCV - Querying db for shapes data"
         incProgress(1/n, detail = "Querying db for shapes data...")
         meta <- colnames(dbGetQuery(conn = conn,'SELECT * FROM metadata'))
@@ -453,15 +469,13 @@ server <- function(input, output){
         colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
         shapes.df <- shapes.df[shapes.df$imgtype == "VIS",]
         shapes.df <- shapes.df[,which(!apply(shapes.df == 0, 2, all))]
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PlantCV - Joining design file"
         incProgress(1/n, detail = "Joining design file...")
         colnames(shapes.df)[colnames(shapes.df) == "plantbarcode"] <- "Barcodes"
         sv_shapes <- join(shapes.df,assoc_empty,by="Barcodes")
         sv_shapes <- sv_shapes[rowSums(sapply(colnames(assoc),function(i) !is.na(sv_shapes[,i])))==ncol(assoc),]
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PlantCV - Adding time columns"
         incProgress(1/n, detail = "Adding time columns...")
         sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
@@ -469,16 +483,14 @@ server <- function(input, output){
         sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
         sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
         sv_shapes$timestamp <- as.character(sv_shapes$timestamp)
-        removeNotification(id)
-        
+
         imp_error_step$data <- "PlantCV - Removing empty pots"
         incProgress(1/n, detail = "Removing empty pots...")
         empties <- sv_shapes[sv_shapes$DAP == (max(sv_shapes$DAP)-1) & sv_shapes$area <10,"Barcodes"]
         sv_shapes <- sv_shapes[!(sv_shapes$Barcodes %in% empties),]
         colnames(sv_shapes) <- gsub("-","_",colnames(sv_shapes))
         sv_shapes[which(sv_shapes == Inf,arr.ind = T)] <- NaN
-        removeNotification(id)
-        
+
         #VIS data organization
         imp_error_step$data <- "PlantCV - Querying db for VIS data"
         incProgress(1/n, detail = "Querying db for VIS data...")
@@ -486,31 +498,25 @@ server <- function(input, output){
         if(nrow(vis.df)!= 0){
           colnames(vis.df)[colnames(vis.df) == "plantbarcode"] <- "Barcodes"
           vis.df <- cbind(data.frame("meta"=rep("meta",nrow(vis.df))),data.frame(do.call(rbind,lapply(strsplit(vis.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),vis.df[,which(!(colnames(vis.df)%in%(c("bin_values","values"))))])
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Joining with design...")
           vis.df <- join(vis.df,assoc_empty,by="Barcodes")
           vis.df <- vis.df[rowSums(sapply(colnames(assoc),function(i) !is.na(vis.df[,i])))==ncol(assoc),]
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Adding time columns...")
           vis.df$timestamp <- strptime(vis.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
           vis.df$DAP <- floor(as.numeric((vis.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
           vis.df$hour <- lubridate::hour(vis.df$timestamp)
           vis.df$timestamp <- as.character(vis.df$timestamp)
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Removing empty pots...")
           vis.df <- vis.df[!(vis.df$Barcodes %in% empties),]
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Merging shapes data...")
           vis_shapes <- join(vis.df, sv_shapes, by = c("image_id","zoom","camera","cartag","exposure","frame","gain","id","imgtype","lifter","Line_name","measurementlabel","other","run_id","treatment","Treatment","Barcodes","timestamp","hour","DAP"))
           sv_shapes <- vis_shapes[,c(colnames(sv_shapes))]
           vis$data <- vis_shapes[,c(colnames(vis.df))]
-          removeNotification(id)
         }else{
-          removeNotification(id)
           id <- showNotification(h3("No VIS data detected"), duration = 1)
           vis$data <- NULL
         }
@@ -522,24 +528,20 @@ server <- function(input, output){
         if(nrow(nir.df)!= 0){
           colnames(nir.df)[colnames(nir.df) == "plantbarcode"] <- "Barcodes"
           nir.df <- cbind(data.frame("meta"=rep("meta",nrow(nir.df))),data.frame(do.call(rbind,lapply(strsplit(nir.df$values,", "),function(i)100*(as.numeric(i)/sum(as.numeric(i)))))),nir.df[,which(!(colnames(nir.df)%in%(c("bin_values","values"))))])
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Joining with design...")
           nir.df <- join(nir.df,assoc_empty,by="Barcodes")
           nir.df <- nir.df[rowSums(sapply(colnames(assoc),function(i) !is.na(nir.df[,i])))==ncol(assoc),]
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Adding time columns...")
           nir.df$timestamp <- strptime(nir.df$timestamp,format = "%Y-%m-%d %H:%M:%S")
           nir.df$DAP <- floor(as.numeric((nir.df$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
           nir.df$hour <- lubridate::hour(nir.df$timestamp)
-          removeNotification(id)
-          
+
           incProgress(1/n, detail = "Removing empty pots...")
           nir.df <- nir.df[!(nir.df$Barcodes %in% empties),]
           nir.df$intensityAVG <- apply(nir.df[,2:256],1,function(i){sum((i/100)*(2:256),na.rm = T)})
           nir$data <- nir.df
-          removeNotification(id)
         }else{
           removeNotification(id)
           id <- showNotification(h3("No NIR data detected"), duration = 1)
@@ -555,7 +557,6 @@ server <- function(input, output){
         id <- showNotification(h3("Done!"), duration = 1)
         dbDisconnect(conn)
       })
-
     }),warning=function(war){},error=function(err){
       removeNotification(id)
       dbDisconnect(conn)
