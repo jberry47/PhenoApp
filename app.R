@@ -239,8 +239,11 @@ server <- function(input, output, session){
     color_data <- join(color_data,snapshot1[,c("id","Barcodes","timestamp")],by="id")
     color_data <- join(color_data,design1,by="Barcodes")
     color_data$timestamp <- strptime(color_data$timestamp,format = "%Y-%m-%d %H:%M:%S")+as.numeric(input$dap_offset)
-    beg <- min(color_data$timestamp)
-    color_data$DAP <- floor(as.numeric((color_data$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+    beg <- as.POSIXct(strptime(paste(
+      as.character(min(strptime(unlist(lapply(strsplit(as.character(color_data$timestamp)," "),function(i)i[1])),format = "%Y-%m-%d"))),
+      strsplit(as.character(min(strptime(unlist(lapply(strsplit(as.character(color_data$timestamp)," "),function(i)i[2])),format = "%H:%M:%S")))," ")[[1]][2]
+    ),format = "%Y-%m-%d %H:%M:%S"))
+    color_data$DAP <- floor(as.numeric(difftime(color_data$timestamp,beg,units = "days")))+as.numeric(input$dap_offset)
     color_data[,start:stop] <- t(apply(color_data[,start:stop],1,function(i){i/(sum(i,na.rm = T)+1)}))*100
     color_data$hr <- as.POSIXlt(color_data$timestamp)$hour
     return(color_data)
@@ -391,8 +394,12 @@ server <- function(input, output, session){
         imp_error_step$data <- "PhenoCV - Adding time columns"
         incProgress(1/n, detail = "Adding time columns...")
         sv_shapes$timestamp <- strptime(sv_shapes$timestamp,format = "%Y-%m-%d %H:%M:%S")
-        beg <- min(sv_shapes$timestamp)
-        sv_shapes$DAP <- floor(as.numeric((sv_shapes$timestamp - beg)/60/60/24))+as.numeric(input$dap_offset)
+        
+        beg <- as.POSIXct(strptime(paste(
+          as.character(min(strptime(unlist(lapply(strsplit(as.character(sv_shapes$timestamp)," "),function(i)i[1])),format = "%Y-%m-%d"))),
+          strsplit(as.character(min(strptime(unlist(lapply(strsplit(as.character(sv_shapes$timestamp)," "),function(i)i[2])),format = "%H:%M:%S")))," ")[[1]][2]
+        ),format = "%Y-%m-%d %H:%M:%S"))
+        sv_shapes$DAP <- floor(as.numeric(difftime(sv_shapes$timestamp,beg,units = "days")))+as.numeric(input$dap_offset)
         sv_shapes$hour <- lubridate::hour(sv_shapes$timestamp)
 
         imp_error_step$data <- "PhenoCV - Removing empty pots"
