@@ -372,10 +372,10 @@ server <- function(input, output, session){
         sv_shapes <- sv_shapes[,which(!as.logical(apply(sv_shapes,2,FUN=function(i) all(is.na(i)))))]
         
         if(ncol(sv_shapes)==21){
-          colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof")
+          colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_vertices","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof")
           shapes$data <- sv_shapes
         }else{
-          colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_verticies","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof", "det")
+          colnames(sv_shapes) <- c("meta","area","hull_area","solidity","perimeter","width","height","cmx","cmy","hull_vertices","ex","ey","emajor","eminor","angle","eccen","circ","round","ar","fd","oof", "det")
           shapes$data <- sv_shapes
         }
         
