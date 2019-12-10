@@ -280,7 +280,7 @@ server <- function(input, output, session){
       }
       removeNotification(id)
       id <- showNotification(h3("Zipping files..."), duration = NULL)
-      zip(flags="-j",zipfile = paste0("data/shiny_write/",session$token,"-data.zip"),files=as.character(list.files("data/shiny_write/temp",full.names = T)))
+      zip(flags="-j",zipfile = paste0("data/shiny_write/",session$token,"-data.zip"),files=as.character(list.files("data/shiny_write/temp",pattern = "*.tsv",full.names = T)))
       removeNotification(id)
       file.copy(paste0("data/shiny_write/",session$token,"-data.zip"),file)
       id <- showNotification(h3("Done!"), duration = 1)
@@ -315,7 +315,7 @@ server <- function(input, output, session){
       }
       removeNotification(id)
       id <- showNotification(h3("Zipping files..."), duration = NULL)
-      zip(flags="-j",zipfile = paste0("data/shiny_write/",session$token,"-data.zip"),files=as.character(list.files("data/shiny_write/temp",full.names = T)))
+      zip(flags="-j",zipfile = paste0("data/shiny_write/",session$token,"-data.zip"),files=as.character(list.files("data/shiny_write/temp",pattern = "*.tsv",full.names = T)))
       removeNotification(id)
       file.copy(paste0("data/shiny_write/",session$token,"-data.zip"),file)
       id <- showNotification(h3("Done!"), duration = 1)
