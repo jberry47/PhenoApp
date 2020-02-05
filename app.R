@@ -1186,7 +1186,7 @@ server <- function(input, output, session){
   shapes_trends <- reactive({
     ggplot(merged$data,aes_string("DAP",paste("as.numeric(",input$dep_var,")",collapse = "")))+
       facet_grid(~eval(parse(text=input$facet_by)))+
-      geom_smooth(aes_string(color=input$color_by))+
+      geom_smooth(aes_string(color=input$color_by),method="loess")+
       ylab(input$dep_var)+
       theme_light()+
       theme(axis.text = element_text(size = 14),
